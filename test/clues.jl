@@ -8,6 +8,7 @@ using CrypticCrosswords: definition, wordplay
         ("male done mixing drink", 8, "drink", "lemonade"),
         ("mollify with fried sausage", 7, "mollify", "assuage"),
         ("Dotty, Sue, Pearl, Joy", 8, "joy", "pleasure"),
+        ("Initially congoers like us eschew solving hints", 5, "hints", "clues")
     ]
 
     for (clue, length, expected_definition, expected_wordplay) in known_clues

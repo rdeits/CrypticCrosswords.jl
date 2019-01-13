@@ -4,7 +4,7 @@ const db = Ref{WordNet.DB}()
 const SYNSETS = Dict{String, Vector{Synset}}()
 const PATHS = Dict{String, Vector{Path}}()
 const SIMILARITY_GROUPS = Dict{String, Vector{SimilarityGroups}}()
-
+const STEMMER = Ref{Stemmer}()
 
 function path_to_synset(db::DB, synset::Synset)
     result = [synset]
@@ -49,21 +49,22 @@ function update_caches!()
     empty!(PATHS)
     empty!(SIMILARITY_GROUPS)
     empty!(SYNSETS)
+    STEMMER[] = Stemmer("english")
     @showprogress "Caching similarities" for (pos, part_of_speech_synsets) in db[].synsets
         for synset in values(part_of_speech_synsets)
             for word in words(synset)
-                push!(get!(Vector{Synset}, SYNSETS, normalize(word)), synset)
+                push!(get!(Vector{Synset}, SYNSETS, stem(STEMMER[], normalize(word))), synset)
             end
             if synset.pos ∈ ('a', 's')
                 groups = similarity_groups(db[], synset)
                 for word in words(synset)
-                    push!(get!(Vector{SimilarityGroups}, SIMILARITY_GROUPS, normalize(word)), groups)
+                    push!(get!(Vector{SimilarityGroups}, SIMILARITY_GROUPS, stem(STEMMER[], normalize(word))), groups)
                 end
             else
                 path = path_to_synset(db[], synset)
                 for word in words(synset)
                     if path !== nothing
-                        push!(get!(Vector{Path}, PATHS, normalize(word)), path)
+                        push!(get!(Vector{Path}, PATHS, stem(STEMMER[], normalize(word))), path)
                     end
                 end
             end

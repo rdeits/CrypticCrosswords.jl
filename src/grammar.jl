@@ -36,8 +36,8 @@ function cryptics_rules()
         Wordplay() => (ReverseIndicator(), Phrase()),
         Wordplay() => (Phrase(), ReverseIndicator()),
         HeadIndicator() => (Phrase(),),
-        Wordplay() => (HeadIndicator(), Token()),
-        Wordplay() => (Token(), HeadIndicator()),
+        Wordplay() => (HeadIndicator(), Phrase()),
+        Wordplay() => (Phrase(), HeadIndicator()),
         InsertABIndicator() => (Phrase(),),
         InsertBAIndicator() => (Phrase(),),
         Wordplay() => (InsertABIndicator(), Wordplay(), Wordplay()),
@@ -123,12 +123,12 @@ propagate(context::Context, ::Wordplay, ::Tuple{ReverseIndicator, Phrase}, input
 @apply_by_reversing Wordplay Phrase ReverseIndicator
 propagate(context::Context, ::Wordplay, ::Tuple{Phrase, ReverseIndicator}, inputs) = propagate_to_argument(context, 1, inputs, nothing)
 
-apply(::Wordplay, ::Tuple{HeadIndicator, Token}, (indicator, word)) = [string(word[1])]
-propagate(context::Context, ::Wordplay, ::Tuple{HeadIndicator, Token}, inputs) =
+apply(::Wordplay, ::Tuple{HeadIndicator, Phrase}, (indicator, phrase)) = [join(first(word) for word in split(phrase))]
+propagate(context::Context, ::Wordplay, ::Tuple{HeadIndicator, Phrase}, inputs) =
     length(inputs) == 1 ? Context(2, typemax(Int), nothing) : unconstrained_context()
 
-@apply_by_reversing Wordplay Token HeadIndicator
-propagate(context::Context, ::Wordplay, ::Tuple{Token, HeadIndicator}, inputs) =
+@apply_by_reversing Wordplay Phrase HeadIndicator
+propagate(context::Context, ::Wordplay, ::Tuple{Phrase, HeadIndicator}, inputs) =
     length(inputs) == 0 ? Context(2, typemax(Int), nothing) : unconstrained_context()
 
 function apply(::Synonym, ::Tuple{Phrase}, (word,))

@@ -31,6 +31,10 @@ Base.setindex(d::DefaultDict, v, k) = setindex(d.data, v, k)
 
 const WORDS = Set{String}(collect(keys(SYNONYMS)))
 
+for line in eachline("/usr/share/dict/words")
+    push!(WORDS, normalize(line))
+end
+
 const WORDS_BY_ANAGRAM = Dict{String, Vector{String}}()
 
 for word in WORDS

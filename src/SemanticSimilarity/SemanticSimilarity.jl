@@ -2,8 +2,9 @@ module SemanticSimilarity
 
 using ..CrypticCrosswords: normalize
 
+using SnowballStemmer: Stemmer, stem
 using WordNet
-using ProgressMeter
+using ProgressMeter: @showprogress
 
 export similarity, WuPalmer, SimilarityDepth
 

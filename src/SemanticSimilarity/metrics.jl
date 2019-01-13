@@ -3,6 +3,8 @@ struct WuPalmer <: AbstractMetric end
 struct SimilarityDepth <: AbstractMetric end
 
 function similarity(w1::AbstractString, w2::AbstractString)
+    w1 = stem(STEMMER[], w1)
+    w2 = stem(STEMMER[], w2)
     max(similarity(WuPalmer(), w1, w2),
         similarity(SimilarityDepth(), w1, w2))
 end

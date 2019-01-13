@@ -1,0 +1,16 @@
+name = "CrypticCrosswords"
+uuid = "5f016b6a-1706-11e9-24c5-5177419d09cb"
+authors = ["Robin Deits <robin.deits@gmail.com>"]
+version = "0.0.0"
+
+[deps]
+Combinatorics = "861a8166-3701-5b0c-9a16-15d98fcdc6aa"
+DataStructures = "864edb3b-99cc-5e75-8d2d-829cb0a9cfe8"
+ProgressMeter = "92933f4c-e287-5a05-a399-4b506db050ca"
+WordNet = "a945a9ba-879e-550e-aa45-2a4d52798e91"
+
+[extras]
+Test = "8dfed614-e22c-5e08-85e1-65c5234f0b40"
+
+[targets]
+test = ["Test"]

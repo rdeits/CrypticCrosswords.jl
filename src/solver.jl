@@ -1,5 +1,5 @@
 function answer_similarity(word1::AbstractString, word2::AbstractString)
-    if word2 in keys(SYNONYMS) && word1 in SYNONYMS[word2]
+    if word2 in keys(SYNONYMS[]) && word1 in SYNONYMS[][word2]
         1.0
     else
         SemanticSimilarity.similarity(word1, word2)
@@ -7,7 +7,7 @@ function answer_similarity(word1::AbstractString, word2::AbstractString)
 end
 
 function solution_quality(arc::PassiveArc)
-    @assert lhs(rule(arc)) === Clue() && length(constituents(arc)) == 2
+    @assert lhs(rule(arc)) === Clue()
     answer_similarity(definition(arc), wordplay(arc))
 end
 

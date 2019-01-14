@@ -36,7 +36,8 @@ end
         synset = rand(rand(synsets))
         for word1 in WordNet.words(synset)
             for word2 in words(synset)
-                @test similarity(word1, word2) == 1.0
+                @test similarity(CrypticCrosswords.normalize(word1),
+                                 CrypticCrosswords.normalize(word2)) == 1.0
             end
         end
     end

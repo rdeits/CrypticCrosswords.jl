@@ -28,7 +28,7 @@
         return nothing
     end
 
-    @showprogress for groups_for_word in values(SemanticSimilarity.SIMILARITY_GROUPS)
+    @showprogress "Similarity depths" for groups_for_word in values(SemanticSimilarity.SIMILARITY_GROUPS)
         for groups in groups_for_word
             synset = first(first(groups))
             for i in 1:length(groups)

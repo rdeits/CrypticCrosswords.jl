@@ -23,4 +23,30 @@ include("grammar.jl")
 include("parsing.jl")
 include("solver.jl")
 
+const WORDS = Set{String}()
+const WORDS_BY_ANAGRAM = Dict{String, Vector{String}}()
+const WORDS_BY_CONSTRAINT = DefaultDict{Constraint, Set{String}}()
+
+function __init__()
+    for word in keys(SYNONYMS[])
+        push!(WORDS, word)
+    end
+    for line in eachline("/usr/share/dict/words")
+        push!(WORDS, normalize(line))
+    end
+    for word in WORDS
+        key = join(sort(collect(replace(word, " " => ""))))
+        v = get!(Vector{String}, WORDS_BY_ANAGRAM, key)
+        push!(v, word)
+    end
+    for word in WORDS
+        push!(WORDS_BY_CONSTRAINT[IsWord], word)
+        for i in 1:length(word)
+            push!(WORDS_BY_CONSTRAINT[IsPrefix], word[1:i])
+            push!(WORDS_BY_CONSTRAINT[IsSuffix], word[(end - i + 1):end])
+        end
+    end
+
+end
+
 end # module

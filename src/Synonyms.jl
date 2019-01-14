@@ -1,8 +1,11 @@
 module Synonyms
 
 using ..CrypticCrosswords: normalize
+using DataDeps
 
 export SYNONYMS
+
+const SYNONYMS = Ref{Dict{String, Set{String}}}()
 
 function parse_heading(line)
     parts = split(line, '|')
@@ -24,6 +27,7 @@ function add_synonyms!(synonyms, word, list)
 end
 
 function parse_synonyms(fname)
+    @info("Parsing synonyms file...")
     synonyms = Dict{String, Set{String}}()
     open(fname) do file
         @assert readline(file) == "ISO8859-1"
@@ -38,6 +42,7 @@ function parse_synonyms(fname)
             end
         end
     end
+    @info("Done!")
     synonyms
 end
 
@@ -78,13 +83,17 @@ function remove_self_mentions!(synonyms)
 end
 
 function load_synonyms()
-    synonyms = parse_synonyms(joinpath(@__DIR__, "..", "corpora", "OpenOffice", "MyThes-1.0", "th_en_US_new.dat"))
+    path = datadep"OpenOffice-MyThes-1.0/MyThes-1.0/th_en_US_new.dat"
+    synonyms = parse_synonyms(path)
     make_symmetric!(synonyms)
     remove_loops!(synonyms)
     remove_self_mentions!(synonyms)
     synonyms
 end
 
-const SYNONYMS = load_synonyms()
+function __init__()
+    include(joinpath(@__DIR__, "..", "deps", "data_registration.jl"))
+    SYNONYMS[] = load_synonyms()
+end
 
 end

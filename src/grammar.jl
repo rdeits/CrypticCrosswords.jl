@@ -6,6 +6,7 @@ struct Phrase <: GrammaticalSymbol end
 struct Wordplay <: GrammaticalSymbol end
 struct Clue <: GrammaticalSymbol end
 struct Definition <: GrammaticalSymbol end
+struct Filler <: GrammaticalSymbol end
 
 abstract type AbstractIndicator <: GrammaticalSymbol end
 struct AnagramIndicator <: AbstractIndicator end
@@ -47,15 +48,18 @@ function cryptics_rules()
         Wordplay() => (Wordplay(), InsertBAIndicator(), Wordplay()),
         Wordplay() => (Wordplay(), Wordplay(), InsertBAIndicator()),
         StraddleIndicator() => (Phrase(),),
-        Wordplay() => (StraddleIndicator(), Token(), Token()),
-        Wordplay() => (Token(), Token(), StraddleIndicator()),
+        Wordplay() => (StraddleIndicator(), Phrase()),
+        Wordplay() => (Phrase(), StraddleIndicator()),
         Wordplay() => (Token(),),
         Wordplay() => (Synonym(),),
         Wordplay() => (Wordplay(), Wordplay()),
+        Filler() => (Token(),),
         Synonym() => (Phrase(),),
         Definition() => (Phrase(),),
         Clue() => (Wordplay(), Definition()),
         Clue() => (Definition(), Wordplay()),
+        Clue() => (Wordplay(), Filler(), Definition()),
+        Clue() => (Definition(), Filler(), Wordplay()),
     ]
 end
 
@@ -117,6 +121,13 @@ propagate(context::Context, ::Clue, ::Tuple{Wordplay, Definition}, inputs) = pro
 @apply_by_reversing Clue Definition Wordplay
 propagate(context::Context, ::Clue, ::Tuple{Definition, Wordplay}, inputs) = propagate_to_argument(context, 2, inputs)
 
+apply(::Filler, ::Tuple{Token}, (word,)) = [""]
+propagate(context::Context, ::Filler, ::Tuple{Token}, inputs) = unconstrained_context()
+
+apply(::Clue, ::Tuple{Wordplay, Filler, Definition}, (w, f, d)) = [w]
+propagate(context::Context, ::Clue, ::Tuple{Wordplay, Filler, Definition}, inputs) = propagate_to_argument(context, 1, inputs)
+apply(::Clue, ::Tuple{Definition, Filler, Wordplay}, (d, f, w)) = [w]
+propagate(context::Context, ::Clue, ::Tuple{Definition, Filler, Wordplay}, inputs) = propagate_to_argument(context, 3, inputs)
 
 apply(::Wordplay, ::Tuple{ReverseIndicator, Phrase}, (indicator, word)) = [reverse(replace(word, " " => ""))]
 propagate(context::Context, ::Wordplay, ::Tuple{ReverseIndicator, Phrase}, inputs) = propagate_to_argument(context, 2, inputs, nothing)
@@ -132,8 +143,8 @@ propagate(context::Context, ::Wordplay, ::Tuple{Phrase, HeadIndicator}, inputs) 
     length(inputs) == 0 ? Context(2, typemax(Int), nothing) : unconstrained_context()
 
 function apply(::Synonym, ::Tuple{Phrase}, (word,))
-    if word in keys(SYNONYMS)
-        collect(SYNONYMS[word])
+    if word in keys(SYNONYMS[])
+        collect(SYNONYMS[][word])
     else
         String[]
     end
@@ -189,28 +200,21 @@ apply(::Wordplay, ::Tuple{Wordplay, Wordplay, InsertBAIndicator}, (b, a, indicat
 propagate(c::Context, ::Wordplay, ::Tuple{Wordplay, Wordplay, InsertBAIndicator}, inputs) =
     propagate_to_insertion(c, 1, 2, inputs)
 
-apply(::Wordplay, ::Tuple{StraddleIndicator, Token, Token}, (indicator, w1, w2)) = straddling_words(w1, w2)
-function propagate(context::Context, ::Wordplay, ::Tuple{StraddleIndicator, Token, Token}, inputs)
+apply(::Wordplay, ::Tuple{StraddleIndicator, Phrase}, (indicator, phrase)) = straddling_words(phrase)
+function propagate(context::Context, ::Wordplay, ::Tuple{StraddleIndicator, Phrase}, inputs)
     if length(inputs) == 1
-        Context(2,
-                typemax(Int),
-                nothing)
-    elseif length(inputs) == 2
-        Context(max(2, context.min_length - num_letters(output(inputs[2])) + 2),
+        Context(2 + context.min_length,
                 typemax(Int),
                 nothing)
     else
         unconstrained_context()
     end
 end
-apply(::Wordplay, ::Tuple{Token, Token, StraddleIndicator}, (w1, w2, indicator)) = straddling_words(w1, w2)
-function propagate(context::Context, ::Wordplay, ::Tuple{Token, Token, StraddleIndicator}, inputs)
+
+apply(::Wordplay, ::Tuple{Phrase, StraddleIndicator}, (phrase, indicator)) = straddling_words(phrase)
+function propagate(context::Context, ::Wordplay, ::Tuple{Phrase, StraddleIndicator}, inputs)
     if length(inputs) == 0
-        Context(2,
-                typemax(Int),
-                nothing)
-    elseif length(inputs) == 1
-        Context(max(2, context.min_length - num_letters(output(inputs[1])) + 2),
+        Context(2 + context.min_length,
                 typemax(Int),
                 nothing)
     else

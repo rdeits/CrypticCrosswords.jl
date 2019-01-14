@@ -1,12 +1,18 @@
-is_word(x::AbstractString) = x in keys(SYNONYMS)
-
-function straddling_words(w1, w2)
+function straddling_words(phrase, condition=is_word)
     results = String[]
-    combined = w1 * w2
-    for i in 2:length(w1)
-        for j in length(w1) .+ (1:(length(w2) - 1))
-            candidate = combined[i:j]
-            if is_word(candidate)
+    combined = replace(phrase, ' ' => "")
+    first_space = findfirst(isequal(' '), phrase)
+    if first_space === nothing
+        return results
+    end
+    first_word_length = first_space - 1
+    last_space = findlast(isequal(' '), phrase)
+    last_word_length = length(phrase) - last_space
+
+    for stop_index in (length(combined) - last_word_length + 1):(length(combined) - 1)
+        for start_index in 2:first_word_length
+            candidate = combined[start_index:stop_index]
+            if condition(candidate)
                 push!(results, candidate)
             end
         end
@@ -29,32 +35,9 @@ DefaultDict{K, V}() where {K, V} = DefaultDict{K, V}(() -> V())
 Base.getindex(d::DefaultDict, k) = get!(d.default, d.data, k)
 Base.setindex(d::DefaultDict, v, k) = setindex(d.data, v, k)
 
-const WORDS = Set{String}(collect(keys(SYNONYMS)))
-
-for line in eachline("/usr/share/dict/words")
-    push!(WORDS, normalize(line))
-end
-
-const WORDS_BY_ANAGRAM = Dict{String, Vector{String}}()
-
-for word in WORDS
-    key = join(sort(collect(replace(word, " " => ""))))
-    v = get!(Vector{String}, WORDS_BY_ANAGRAM, key)
-    push!(v, word)
-end
+is_word(x::AbstractString) = x in WORDS
 
 @enum Constraint IsWord IsPrefix IsSuffix
-
-const WORDS_BY_CONSTRAINT = DefaultDict{Constraint, Set{String}}()
-
-for word in WORDS
-    push!(WORDS_BY_CONSTRAINT[IsWord], word)
-    for i in 1:length(word)
-        push!(WORDS_BY_CONSTRAINT[IsPrefix], word[1:i])
-        push!(WORDS_BY_CONSTRAINT[IsSuffix], word[(end - i + 1):end])
-    end
-end
-
 
 struct Context
     min_length::Int

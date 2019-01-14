@@ -11,6 +11,10 @@ ProgressMeter = "92933f4c-e287-5a05-a399-4b506db050ca"
 SnowballStemmer = "0089d5a0-cc9e-11e8-15b2-431392cf18df"
 WordNet = "a945a9ba-879e-550e-aa45-2a4d52798e91"
 
+[compat]
+julia = "1.0"
+WordNet = "0.2.1"
+
 [extras]
 Test = "8dfed614-e22c-5e08-85e1-65c5234f0b40"
 

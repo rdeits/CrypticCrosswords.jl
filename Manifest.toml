@@ -179,6 +179,8 @@ uuid = "4ec0a83e-493e-50e2-b9ac-8f72acf5a8f5"
 
 [[WordNet]]
 deps = ["DataDeps", "Test"]
-path = "/home/rdeits/.julia/dev/WordNet"
+git-tree-sha1 = "45a60de1f2a0c4e1814b54657a9d1674ee021418"
+repo-rev = "master"
+repo-url = "https://github.com/JuliaText/WordNet.jl.git"
 uuid = "a945a9ba-879e-550e-aa45-2a4d52798e91"
 version = "0.2.1+"

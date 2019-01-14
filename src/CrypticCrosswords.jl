@@ -2,6 +2,7 @@ module CrypticCrosswords
 
 using Base.Iterators: product, drop
 using Combinatorics: permutations
+using DataDeps: @datadep_str
 
 export solve, Context, IsWord, IsPrefix, IsSuffix
 
@@ -31,7 +32,7 @@ function __init__()
     for word in keys(SYNONYMS[])
         push!(WORDS, word)
     end
-    for line in eachline("/usr/share/dict/words")
+    for line in eachline(datadep"SCOWL-wordlist-en_US-large/en_US-large.txt")
         push!(WORDS, normalize(line))
     end
     for word in WORDS

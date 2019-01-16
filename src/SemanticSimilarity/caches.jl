@@ -6,17 +6,37 @@ const PATHS = Dict{String, Vector{Path}}()
 const SIMILARITY_GROUPS = Dict{String, Vector{SimilarityGroups}}()
 const STEMMER = Ref{Stemmer}()
 
-function path_to_synset(db::DB, synset::Synset)
-    result = [synset]
-    while synset != WordNet.∅
-        synset = hypernyms(db, synset)
-        push!(result, synset)
-        if length(result) > 50
-            return nothing
+function push(v::AbstractVector, x)
+    result = copy(v)
+    push!(result, x)
+    result
+end
+
+function paths_to_synset(db::DB, synset::Synset)
+    complete_paths = Vector{Path}()
+    active_set = [[synset]]
+    while !isempty(active_set)
+        path = pop!(active_set)
+        parents = WordNet.relation(db, path[end], WordNet.HYPERNYM)
+        if isempty(parents)
+            push!(path, WordNet.∅)
+            reverse!(path)
+            push!(complete_paths, path)
+        else
+            for parent in parents
+                if parent ∉ path
+                    if length(parents) == 1
+                        push!(path, parent)
+                        new_path = path
+                    else
+                        new_path = push(path, parent)
+                    end
+                    push!(active_set, new_path)
+                end
+            end
         end
     end
-    reverse!(result)
-    result
+    complete_paths
 end
 
 similar_to(db::DB, synset::Synset) = WordNet.relation(db, synset, WordNet.SIMILAR_TO)
@@ -61,11 +81,9 @@ function update_caches!()
                     push!(get!(Vector{SimilarityGroups}, SIMILARITY_GROUPS, stem(STEMMER[], normalize(word))), groups)
                 end
             else
-                path = path_to_synset(db[], synset)
+                paths = paths_to_synset(db[], synset)
                 for word in words(synset)
-                    if path !== nothing
-                        push!(get!(Vector{Path}, PATHS, stem(STEMMER[], normalize(word))), path)
-                    end
+                    append!(get!(Vector{Path}, PATHS, stem(STEMMER[], normalize(word))), paths)
                 end
             end
         end

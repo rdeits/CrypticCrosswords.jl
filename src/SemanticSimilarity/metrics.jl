@@ -3,8 +3,13 @@ struct WuPalmer <: AbstractMetric end
 struct SimilarityDepth <: AbstractMetric end
 
 function similarity(w1::AbstractString, w2::AbstractString)
-    w1 = stem(STEMMER[], w1)
-    w2 = stem(STEMMER[], w2)
+    phrase1 = stem.(STEMMER, split(w1, ' '))
+    phrase2 = stem.(STEMMER, split(w2, ' '))
+    max(_similarity_of_stemmed_words(stem(STEMMER[], w1), stem(STEMMER[], w2)),
+        mean(_similarity_of_stemmed_words(a, b) for a in phrase1 for b in phrase2))
+end
+
+function _similarity_of_stemmed_words(w1::AbstractString, w2::AbstractString)
     max(similarity(WuPalmer(), w1, w2),
         similarity(SimilarityDepth(), w1, w2))
 end

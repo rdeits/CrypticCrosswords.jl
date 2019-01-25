@@ -27,12 +27,14 @@ function solutions(chart::Chart)
     results
 end
 
-solve(clue::AbstractString, length::Integer) = solve(clue, Context(length, length, IsWord))
+solve(clue::AbstractString, length::Integer, pattern::Regex=r"") = solve(clue, Context(length, length, IsWord), pattern)
 
-function solve(clue::AbstractString, context::Context)
+function solve(clue::AbstractString, context::Context, pattern::Regex=r"")
     rules = cryptics_rules()
     grammar = Grammar(rules)
     tokens = normalize.(split(clue))
     chart = chart_parse(tokens, grammar, context, TopDown());
-    solutions(chart)
+    results = solutions(chart)
+    filter!(((arc, score),) -> occursin(pattern, wordplay(arc)), results)
+    results
 end

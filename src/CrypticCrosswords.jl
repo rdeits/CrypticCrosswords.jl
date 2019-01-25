@@ -3,6 +3,7 @@ module CrypticCrosswords
 using Base.Iterators: product, drop
 using Combinatorics: permutations
 using DataDeps: @datadep_str
+import JSON
 
 export solve, Context, IsWord, IsPrefix, IsSuffix
 
@@ -27,6 +28,7 @@ include("solver.jl")
 const WORDS = Set{String}()
 const WORDS_BY_ANAGRAM = Dict{String, Vector{String}}()
 const WORDS_BY_CONSTRAINT = DefaultDict{Constraint, Set{String}}()
+const ABBREVIATIONS = Dict{String, Vector{String}}()
 
 function __init__()
     for word in keys(SYNONYMS[])
@@ -47,7 +49,16 @@ function __init__()
             push!(WORDS_BY_CONSTRAINT[IsSuffix], word[(end - i + 1):end])
         end
     end
-
+    open(joinpath(@__DIR__, "..", "corpora", "mhl-abbreviations", "abbreviations.json")) do file
+        for (word, abbrevs) in JSON.parse(file)
+            ABBREVIATIONS[normalize(word)] = normalize.(abbrevs)
+        end
+    end
+    open(joinpath(@__DIR__, "..", "corpora", "abbreviations.json")) do file
+        for (word, abbrevs) in JSON.parse(file)
+            append!(get!(Vector{String}, ABBREVIATIONS, normalize(word)), normalize.(abbrevs))
+        end
+    end
 end
 
 end # module

@@ -14,6 +14,7 @@ using CrypticCrosswords: definition, wordplay
         ("singers in special tosca production", 5, "singers", "altos"),
         ("Desire bawdy slut", 4, "desire", "lust"),
         ("Carryall's gotta be upset", 7, "carryalls", "tote bag"),
+        ("initial meetings disappoint rosemary internally", 6, "initial", "intros"), # definition should be "initial meetings"
     ]
 
     for (clue, length, expected_definition, expected_wordplay) in known_clues

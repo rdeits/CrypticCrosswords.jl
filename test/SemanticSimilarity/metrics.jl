@@ -6,9 +6,9 @@
         # Similarity is symmetric
         word1 = rand(words)
         word2 = rand(words)
-        @test similarity(word1, word2) == similarity(word2, word1)
-        @test similarity(WuPalmer(), word1, word2) == similarity(WuPalmer(), word2, word1)
-        @test similarity(SimilarityDepth(), word1, word2) == similarity(SimilarityDepth(), word2, word1)
+        @test similarity(word1, word2) ≈ similarity(word2, word1)
+        @test similarity(WuPalmer(), word1, word2) ≈ similarity(WuPalmer(), word2, word1)
+        @test similarity(SimilarityDepth(), word1, word2) ≈ similarity(SimilarityDepth(), word2, word1)
     end
     for i in 1:100
         # No word is similar to a nonexistent word
@@ -45,4 +45,5 @@ end
 
 @testset "Specific words" begin
 
+≈
 end

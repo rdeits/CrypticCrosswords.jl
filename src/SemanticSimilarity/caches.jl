@@ -90,6 +90,10 @@ function update_caches!()
     end
 end
 
+function synsets(word)
+    get(SYNSETS, stem(STEMMER[], word), Synset[])
+end
+
 function __init__()
     update_caches!()
 end

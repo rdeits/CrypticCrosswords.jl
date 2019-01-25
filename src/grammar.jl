@@ -7,6 +7,7 @@ struct Wordplay <: GrammaticalSymbol end
 struct Clue <: GrammaticalSymbol end
 struct Definition <: GrammaticalSymbol end
 struct Filler <: GrammaticalSymbol end
+struct Abbreviation <: GrammaticalSymbol end
 
 abstract type AbstractIndicator <: GrammaticalSymbol end
 struct AnagramIndicator <: AbstractIndicator end
@@ -14,6 +15,7 @@ struct ReverseIndicator <: AbstractIndicator end
 struct InsertABIndicator <: AbstractIndicator end
 struct InsertBAIndicator <: AbstractIndicator end
 struct HeadIndicator <: AbstractIndicator end
+struct TailIndicator <: AbstractIndicator end
 struct StraddleIndicator <: AbstractIndicator end
 
 const Rule = Pair{<:GrammaticalSymbol, <:Tuple{Vararg{GrammaticalSymbol}}}
@@ -39,6 +41,9 @@ function cryptics_rules()
         HeadIndicator() => (Phrase(),),
         Wordplay() => (HeadIndicator(), Phrase()),
         Wordplay() => (Phrase(), HeadIndicator()),
+        TailIndicator() => (Phrase(),),
+        Wordplay() => (TailIndicator(), Phrase()),
+        Wordplay() => (Phrase(), TailIndicator()),
         InsertABIndicator() => (Phrase(),),
         InsertBAIndicator() => (Phrase(),),
         Wordplay() => (InsertABIndicator(), Wordplay(), Wordplay()),
@@ -53,6 +58,8 @@ function cryptics_rules()
         Wordplay() => (Token(),),
         Wordplay() => (Synonym(),),
         Wordplay() => (Wordplay(), Wordplay()),
+        Wordplay() => (Abbreviation(),),
+        Abbreviation() => (Phrase(),),
         Filler() => (Token(),),
         Synonym() => (Phrase(),),
         Definition() => (Phrase(),),
@@ -121,6 +128,9 @@ propagate(context::Context, ::Clue, ::Tuple{Wordplay, Definition}, inputs) = pro
 @apply_by_reversing Clue Definition Wordplay
 propagate(context::Context, ::Clue, ::Tuple{Definition, Wordplay}, inputs) = propagate_to_argument(context, 2, inputs)
 
+apply(::Abbreviation, ::Tuple{Phrase}, (word,)) = copy(get(ABBREVIATIONS, word, String[]))
+propagate(context::Context, ::Abbreviation, ::Tuple{Phrase}, inputs) = unconstrained_context()
+
 apply(::Filler, ::Tuple{Token}, (word,)) = [""]
 propagate(context::Context, ::Filler, ::Tuple{Token}, inputs) = unconstrained_context()
 
@@ -140,6 +150,14 @@ propagate(context::Context, ::Wordplay, ::Tuple{HeadIndicator, Phrase}, inputs) 
 
 @apply_by_reversing Wordplay Phrase HeadIndicator
 propagate(context::Context, ::Wordplay, ::Tuple{Phrase, HeadIndicator}, inputs) =
+    length(inputs) == 0 ? Context(2, typemax(Int), nothing) : unconstrained_context()
+
+apply(::Wordplay, ::Tuple{TailIndicator, Phrase}, (indicator, phrase)) = [join(last(word) for word in split(phrase))]
+propagate(context::Context, ::Wordplay, ::Tuple{TailIndicator, Phrase}, inputs) =
+    length(inputs) == 1 ? Context(2, typemax(Int), nothing) : unconstrained_context()
+
+@apply_by_reversing Wordplay Phrase TailIndicator
+propagate(context::Context, ::Wordplay, ::Tuple{Phrase, TailIndicator}, inputs) =
     length(inputs) == 0 ? Context(2, typemax(Int), nothing) : unconstrained_context()
 
 function apply(::Synonym, ::Tuple{Phrase}, (word,))

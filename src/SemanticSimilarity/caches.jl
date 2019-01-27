@@ -4,7 +4,7 @@ const db = Ref{WordNet.DB}()
 const SYNSETS = Dict{String, Vector{Synset}}()
 const PATHS = Dict{String, Vector{Path}}()
 const SIMILARITY_GROUPS = Dict{String, Vector{SimilarityGroups}}()
-const STEMMER = Ref{Stemmer}()
+# const STEMMER = Ref{Stemmer}()
 
 function push(v::AbstractVector, x)
     result = copy(v)
@@ -64,26 +64,34 @@ function similarity_groups(db::DB, synset::Synset, max_depth=10)
     groups
 end
 
+function basic_stem(word)
+    if endswith(word, 's')
+        word[1:end-1]
+    else
+        word
+    end
+end
+
 function update_caches!()
     db[] = DB()
     empty!(PATHS)
     empty!(SIMILARITY_GROUPS)
     empty!(SYNSETS)
-    STEMMER[] = Stemmer("english")
+    # STEMMER[] = Stemmer("english")
     @showprogress "Caching similarities" for (pos, part_of_speech_synsets) in db[].synsets
         for synset in values(part_of_speech_synsets)
             for word in words(synset)
-                push!(get!(Vector{Synset}, SYNSETS, stem(STEMMER[], normalize(word))), synset)
+                push!(get!(Vector{Synset}, SYNSETS, basic_stem(normalize(word))), synset)
             end
             if synset.pos ∈ ('a', 's')
                 groups = similarity_groups(db[], synset)
                 for word in words(synset)
-                    push!(get!(Vector{SimilarityGroups}, SIMILARITY_GROUPS, stem(STEMMER[], normalize(word))), groups)
+                    push!(get!(Vector{SimilarityGroups}, SIMILARITY_GROUPS, basic_stem(normalize(word))), groups)
                 end
             else
                 paths = paths_to_synset(db[], synset)
                 for word in words(synset)
-                    append!(get!(Vector{Path}, PATHS, stem(STEMMER[], normalize(word))), paths)
+                    append!(get!(Vector{Path}, PATHS, basic_stem(normalize(word))), paths)
                 end
             end
         end
@@ -91,7 +99,7 @@ function update_caches!()
 end
 
 function synsets(word)
-    get(SYNSETS, stem(STEMMER[], word), Synset[])
+    get(SYNSETS, basic_stem(word), Synset[])
 end
 
 function __init__()

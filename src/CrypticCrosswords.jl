@@ -3,6 +3,7 @@ module CrypticCrosswords
 using Base.Iterators: product, drop
 using Combinatorics: permutations
 using DataDeps: @datadep_str
+using ProgressMeter: @showprogress
 import JSON
 
 export solve, Context, IsWord, IsPrefix, IsSuffix
@@ -29,6 +30,7 @@ const WORDS = Set{String}()
 const WORDS_BY_ANAGRAM = Dict{String, Vector{String}}()
 const WORDS_BY_CONSTRAINT = DefaultDict{Constraint, Set{String}}()
 const ABBREVIATIONS = Dict{String, Vector{String}}()
+const SUBSTRINGS = Set{String}()
 
 function __init__()
     for word in keys(SYNONYMS[])
@@ -57,6 +59,14 @@ function __init__()
     open(joinpath(@__DIR__, "..", "corpora", "abbreviations.json")) do file
         for (word, abbrevs) in JSON.parse(file)
             append!(get!(Vector{String}, ABBREVIATIONS, normalize(word)), normalize.(abbrevs))
+        end
+    end
+
+    @showprogress "Generating substrings" for word in WORDS
+        for i in 1:length(word)
+            for j in 1:length(word)
+                push!(SUBSTRINGS, word[i:j])
+            end
         end
     end
 end

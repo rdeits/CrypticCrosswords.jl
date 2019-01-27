@@ -17,6 +17,8 @@ struct InsertBAIndicator <: AbstractIndicator end
 struct HeadIndicator <: AbstractIndicator end
 struct TailIndicator <: AbstractIndicator end
 struct StraddleIndicator <: AbstractIndicator end
+struct InitialSubstringIndicator <: AbstractIndicator end
+struct FinalSubstringIndicator <: AbstractIndicator end
 
 const Rule = Pair{<:GrammaticalSymbol, <:Tuple{Vararg{GrammaticalSymbol}}}
 lhs(r::Pair) = first(r)
@@ -59,6 +61,14 @@ function cryptics_rules()
         Wordplay() => (Synonym(),),
         Wordplay() => (Wordplay(), Wordplay()),
         Wordplay() => (Abbreviation(),),
+        InitialSubstringIndicator() => (Phrase(),),
+        Wordplay() => (InitialSubstringIndicator(), Phrase()),
+        Wordplay() => (Phrase(), InitialSubstringIndicator()),
+        Wordplay() => (InitialSubstringIndicator(), Synonym()),
+        Wordplay() => (Synonym(), InitialSubstringIndicator()),
+        FinalSubstringIndicator() => (Phrase(),),
+        Wordplay() => (FinalSubstringIndicator(), Synonym()),
+        Wordplay() => (Synonym(), FinalSubstringIndicator()),
         Abbreviation() => (Phrase(),),
         Filler() => (Token(),),
         Synonym() => (Phrase(),),
@@ -120,7 +130,14 @@ function propagate_to_argument(context, index, inputs, constraint=context.constr
 end
 
 
-apply(::Wordplay, ::Tuple{Wordplay, Wordplay}, (a, b)) = [string(a, b)]
+function apply(::Wordplay, ::Tuple{Wordplay, Wordplay}, (a, b))
+    combined = string(a, b)
+    if combined in SUBSTRINGS
+        [combined]
+    else
+        String[]
+    end
+end
 propagate(context::Context, ::Wordplay, ::Tuple{Wordplay, Wordplay}, inputs) = propagate_concatenation(context, inputs)
 
 apply(::Clue, ::Tuple{Wordplay, Definition}, (wordplay, definition)) = [wordplay]
@@ -174,9 +191,14 @@ propagate(context::Context, ::Synonym, ::Tuple{Phrase}, inputs) = unconstrained_
 All insertions of a into b
 """
 function insertions(a, b)
-    map(1:(length(b) - 1)) do breakpoint
-        string(b[1:breakpoint], a, b[(breakpoint+1):end])
+    results = String[]
+    for breakpoint in 1:(length(b) - 1)
+        s = string(b[1:breakpoint], a, b[(breakpoint+1):end])
+        if s in SUBSTRINGS
+            push!(results, s)
+        end
     end
+    results
 end
 
 function propagate_to_insertion(context::Context, arg1::Integer, arg2::Integer, inputs)
@@ -239,3 +261,79 @@ function propagate(context::Context, ::Wordplay, ::Tuple{Phrase, StraddleIndicat
         unconstrained_context()
     end
 end
+
+function apply(::Wordplay, ::Tuple{InitialSubstringIndicator, Union{Phrase, Synonym}}, (indicator, phrase))
+    combined = replace(phrase, ' ' => "")
+    results = String[]
+    len = length(combined)
+    for i in 2:3
+        if len > i + 1
+            push!(results, combined[1:i])
+        end
+    end
+    if len > 4
+        push!(results, combined[1:end-1])
+    end
+    if iseven(len)
+        first_half = combined[1:(len ÷ 2)]
+        if first_half ∉ results
+            push!(results, first_half)
+        end
+    end
+    results
+end
+function propagate(context::Context, ::Wordplay, ::Tuple{InitialSubstringIndicator, Union{Phrase, Synonym}}, inputs)
+    if length(inputs) == 1
+        Context(1 + context.min_length,
+                typemax(Int),
+                nothing)
+    else
+        unconstrained_context()
+    end
+end
+@apply_by_reversing Wordplay Union{Phrase, Synonym} InitialSubstringIndicator
+function propagate(context::Context, ::Wordplay, ::Tuple{Union{Phrase, Synonym}, InitialSubstringIndicator}, inputs)
+    if length(inputs) == 0
+        Context(1 + context.min_length,
+                typemax(Int),
+                nothing)
+    else
+        unconstrained_context()
+    end
+end
+
+function apply(::Wordplay, ::Tuple{FinalSubstringIndicator, Union{Phrase, Synonym}}, (indicator, phrase))
+    combined = replace(phrase, ' ' => "")
+    results = String[]
+    len = length(combined)
+    if len > 2
+        push!(results, combined[2:end])
+    end
+    if iseven(len)
+        last_half = combined[(len ÷ 2 + 1):end]
+        if last_half ∉ results
+            push!(results, last_half)
+        end
+    end
+    results
+end
+function propagate(context::Context, ::Wordplay, ::Tuple{FinalSubstringIndicator, Union{Phrase, Synonym}}, inputs)
+    if length(inputs) == 1
+        Context(1 + context.min_length,
+                typemax(Int),
+                nothing)
+    else
+        unconstrained_context()
+    end
+end
+@apply_by_reversing Wordplay Union{Phrase, Synonym} FinalSubstringIndicator
+function propagate(context::Context, ::Wordplay, ::Tuple{Union{Phrase, Synonym}, FinalSubstringIndicator}, inputs)
+    if length(inputs) == 0
+        Context(1 + context.min_length,
+                typemax(Int),
+                nothing)
+    else
+        unconstrained_context()
+    end
+end
+

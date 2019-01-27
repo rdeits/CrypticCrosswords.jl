@@ -14,11 +14,13 @@ using CrypticCrosswords: definition, wordplay
         ("singers in special tosca production", 5, "singers", "altos"),
         ("Desire bawdy slut", 4, "desire", "lust"),
         ("Carryall's gotta be upset", 7, "carryalls", "tote bag"),
-        ("initial meetings disappoint rosemary internally", 6, "initial", "intros"), # definition should be "initial meetings"
+        ("initial meetings disappoint rosemary internally", 6, "initial meetings", "intros"),
+        ("couch is unfinished until now", 4, "couch", "sofa")
     ]
 
-    for (clue, length, expected_definition, expected_wordplay) in known_clues
-        solutions = solve(clue, Context(length, length, IsWord))
+    @time for (clue, length, expected_definition, expected_wordplay) in known_clues
+        @show clue
+        solutions = @time solve(clue, Context(length, length, IsWord))
         (best, score) = first(solutions)
         @test definition(best) == expected_definition
         @test wordplay(best) == expected_wordplay

@@ -21,8 +21,8 @@ using CrypticCrosswords: definition, wordplay
     @time for (clue, length, expected_definition, expected_wordplay) in known_clues
         @show clue
         solutions = @time solve(clue, Context(length, length, IsWord))
-        (best, score) = first(solutions)
-        @test definition(best) == expected_definition
-        @test wordplay(best) == expected_wordplay
+        (arc, output, score) = first(solutions)
+        @test definition(arc) == expected_definition
+        @test output == expected_wordplay
     end
 end

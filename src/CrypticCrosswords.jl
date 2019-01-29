@@ -26,11 +26,39 @@ include("grammar.jl")
 include("parsing.jl")
 include("solver.jl")
 
+struct Trie{T}
+    children::Dict{T, Trie{T}}
+end
+
+Trie{T}() where {T} = Trie{T}(Dict{T, Trie{T}}())
+
+function Base.push!(t::Trie, x)
+    T = eltype(x)
+    for element in x
+        t = get!(Trie{T}, t.children, element)
+    end
+end
+
+function Base.show(io::IO, t::Trie{T}) where {T}
+    print(io, "Trie{$T}(...)")
+end
+
+function Base.in(x, t::Trie)
+    for element in x
+        t = get(t.children, element, nothing)
+        if t === nothing
+            return false
+        end
+    end
+    return true
+end
+
 const WORDS = Set{String}()
 const WORDS_BY_ANAGRAM = Dict{String, Vector{String}}()
 const WORDS_BY_CONSTRAINT = DefaultDict{Constraint, Set{String}}()
 const ABBREVIATIONS = Dict{String, Vector{String}}()
-const SUBSTRINGS = Set{String}()
+const SUBSTRINGS = Trie{Char}()
+
 
 function __init__()
     for word in keys(SYNONYMS[])
@@ -63,6 +91,7 @@ function __init__()
     end
 
     @showprogress "Generating substrings" for word in WORDS
+        word = replace(word, ' ' => "")
         for i in 1:length(word)
             for j in 1:length(word)
                 push!(SUBSTRINGS, word[i:j])

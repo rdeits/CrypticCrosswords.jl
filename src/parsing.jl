@@ -13,15 +13,17 @@ struct PassiveArc <: AbstractArc
     rule::Rule
     rule_id::RuleID
     constituents::Vector{PassiveArc}
-    output::String
+    outputs::Vector{String}
+    derivations::Vector{NTuple{N, String}} where N
 end
+outputs(a::PassiveArc) = a.outputs
+
 
 struct ActiveArc <: AbstractArc
     start::Int
     stop::Int
     rule::Rule
     rule_id::RuleID
-    context::Context
     constituents::Vector{PassiveArc}
 end
 
@@ -29,44 +31,69 @@ rule(arc::AbstractArc) = arc.rule
 rule_id(arc::AbstractArc) = arc.rule_id
 head(arc::AbstractArc) = lhs(rule_id(arc))
 constituents(arc::AbstractArc) = arc.constituents
-
-context(arc::ActiveArc) = arc.context
 num_arguments(arc::AbstractArc) = length(rhs(rule_id(arc)))
 num_completions(arc::AbstractArc) = length(constituents(arc))
+is_complete(arc::AbstractArc) = num_completions(arc) == num_arguments(arc)
 
-is_complete(arc::ActiveArc) = num_completions(arc) == num_arguments(arc)
+PassiveArc(arc::ActiveArc, outputs, derivations) =
+    PassiveArc(arc.start, arc.stop, arc.rule, arc.rule_id, arc.constituents,
+               outputs, derivations)
+
 function next_needed(arc::ActiveArc)
     @assert !is_complete(arc)
     rhs(rule_id(arc))[num_completions(arc) + 1]
 end
-
-output(arc::PassiveArc) = arc.output
 
 const Constituents = Vector{PassiveArc}
 const Agenda = Vector{ActiveArc}
 
 @generated function _apply(head::GrammaticalSymbol,
                            args::Tuple{Vararg{GrammaticalSymbol, N}},
-                           constituents::Constituents) where {N}
+                           inputs) where {N}
     quote
-        apply(head, args, $(Expr(:tuple, [:(constituents[$i].output) for i in 1:N]...)))
+        outputs = Vector{String}()
+        derivations = Vector{NTuple{N, String}}()
+        for input in $(Expr(:call, :product, [:(inputs[$i]) for i in 1:N]...))
+            for output in apply(head, args, input)
+                push!(outputs, output)
+                push!(derivations, input)
+            end
+        end
+        outputs, derivations
     end
 end
 
 function apply(rule::Rule,
                 constituents::Constituents)
-    _apply(lhs(rule), rhs(rule), constituents)
+    _apply(lhs(rule), rhs(rule), outputs.(constituents))
 end
-
 
 function solve(arc::ActiveArc)
     # @show arc
     @assert is_complete(arc)
-    outputs = apply(rule(arc), constituents(arc))
-    # @show outputs
-    filter!(is_match(context(arc)), outputs)
-    # @show outputs
-    [PassiveArc(arc.start, arc.stop, rule(arc), rule_id(arc), constituents(arc), output) for output in outputs]
+    outputs, derivations = apply(rule(arc), constituents(arc))
+    PassiveArc(arc, outputs, derivations)
+end
+
+function Base.hash(arc::ActiveArc, h::UInt)
+    h = hash(arc.start, h)
+    h = hash(arc.stop, h)
+    h = hash(rule_id(arc), h)
+    for c in constituents(arc)
+        h = hash(objectid(c), h)
+    end
+    h
+end
+
+function Base.:(==)(a1::ActiveArc, a2::ActiveArc)
+    a1.start == a2.start || return false
+    a1.stop == a2.stop || return false
+    rule_id(a1) == rule_id(a2) || return false
+    length(constituents(a1)) == length(constituents(a2)) || return false
+    for i in eachindex(constituents(a1))
+        a1.constituents[i] === a2.constituents[i] || return false
+    end
+    true
 end
 
 function Base.hash(arc::PassiveArc, h::UInt)
@@ -76,7 +103,8 @@ function Base.hash(arc::PassiveArc, h::UInt)
     for c in constituents(arc)
         h = hash(objectid(c), h)
     end
-    h = hash(output(arc), h)
+    h = hash(arc.outputs, h)
+    h = hash(arc.derivations, h)
     h
 end
 
@@ -88,13 +116,13 @@ function Base.:(==)(a1::PassiveArc, a2::PassiveArc)
     for i in eachindex(constituents(a1))
         a1.constituents[i] === a2.constituents[i] || return false
     end
-    output(a1) == output(a2) || return false
-    true
+    a1.outputs == a2.outputs || return false
+    a1.derivations == a2.derivations || return false
 end
 
 function combine(a1::ActiveArc, a2::PassiveArc)
     new_constituents = push(constituents(a1), a2)
-    ActiveArc(a1.start, a2.stop, rule(a1), rule_id(a1), context(a1), new_constituents)
+    ActiveArc(a1.start, a2.stop, rule(a1), rule_id(a1), new_constituents)
 end
 
 combine(a1::PassiveArc, a2::ActiveArc) = combine(a2, a1)
@@ -125,10 +153,8 @@ function expand(io::IO, arc::AbstractArc, indentation=0)
             end
         end
     end
-    if isa(arc, ActiveArc)
-        print(io, " | ", context(arc))
-    else
-        print(io, " -> ", output(arc))
+    if isa(arc, PassiveArc)
+        print(io, " -> ", outputs(arc))
     end
     print(io, ")")
 end
@@ -136,14 +162,14 @@ end
 struct Chart
     num_tokens::Int
     active::Dict{UInt, Vector{Vector{ActiveArc}}} # organized by next needed constituent then by stop
-    passive::Dict{UInt, Vector{Set{PassiveArc}}} # organized by head then by start
+    passive::Dict{UInt, Vector{Vector{PassiveArc}}} # organized by head then by start
 end
 
 num_tokens(chart::Chart) = chart.num_tokens
 
 Chart(num_tokens) = Chart(num_tokens,
                           Dict{UInt, Vector{Vector{ActiveArc}}}(),
-                          Dict{UInt, Vector{Set{PassiveArc}}}())
+                          Dict{UInt, Vector{Vector{PassiveArc}}}())
 
 function _active_storage(chart::Chart, next_needed::UInt, stop::Integer)
     v = get!(chart.active, next_needed) do
@@ -154,7 +180,7 @@ end
 
 function _passive_storage(chart::Chart, head::UInt, start::Integer)
     v = get!(chart.passive, head) do
-        [Set{PassiveArc}() for _ in 0:num_tokens(chart)]
+        [Vector{PassiveArc}() for _ in 0:num_tokens(chart)]
     end
     v[start + 1]
 end
@@ -184,56 +210,44 @@ function Grammar(rules::AbstractVector{<:Rule})
     Grammar(Pair{Rule, RuleID}[rule => rule_id(rule) for rule in rules])
 end
 
-function initial_chart(tokens, grammar, context::Context, ::TopDown)
+function initial_chart(tokens, grammar, ::TopDown)
     chart = Chart(length(tokens))
     rule = Token() => ()
     id = rule_id(rule)
     for (i, token) in enumerate(tokens)
-        push!(chart, PassiveArc(i - 1, i, rule, id, Constituents(), String(token)))
+        push!(chart, PassiveArc(ActiveArc(i - 1, i, rule, id, Constituents()),
+                                [String(token)],
+                                Vector{Tuple{}}()))
     end
     chart
 end
 
-function initial_agenda(tokens, grammar, context::Context, ::TopDown)
+function initial_agenda(tokens, grammar, ::TopDown)
     agenda = Agenda()
     for (rule, rule_id) in grammar.productions
         if lhs(rule) == Clue()  # TODO get start symbol from grammar
-            push!(agenda, ActiveArc(0, 0, rule, rule_id, context, Constituents()))
+            push!(agenda, ActiveArc(0, 0, rule, rule_id, Constituents()))
         end
     end
     agenda
 end
 
 struct Predictions
-    predictions::Dict{Tuple{UInt, Int}, Vector{Context}}
+    predictions::Set{Tuple{UInt, Int}}
 end
 
-Predictions() = Predictions(Dict{Tuple{UInt, Int}, Vector{Context}}())
+Predictions() = Predictions(Set{Tuple{UInt, Int}}())
 
 """
 Returns `true` if the key was added, `false` otherwise.
 """
-function maybe_push!(p::Predictions, (symbol, index, context)::Tuple{UInt, Int, Context})
-    v = get!(() -> Vector{Context}(), p.predictions, (symbol, index))
-    for i in eachindex(v)
-        other_context = v[i]
-        if context == other_context || context ⊆ other_context
-            # This context is a subset of a context we've already added,
-            # so there is no reason to make hypotheses about it
-            return false
-        elseif other_context ⊆ context
-            # This context is a superset of a context we've already added,
-            # so it is useful to make hypotheses about it. Furthermore,
-            # we can completely replace the old context in our prediction
-            # record with the new, more general, context.
-            v[i] = context
-            return true
-        end
+function maybe_push!(p::Predictions, key::Tuple{UInt, Int})
+    if key in p.predictions
+        return false
+    else
+        push!(p.predictions, key)
+        return true
     end
-    # This context is totally new, so it's useful for generating hypotheses
-    # and we should add it to the record of predictions.
-    push!(v, context)
-    return true
 end
 
 function maybe_push!(chart::Chart, arc::ActiveArc)
@@ -245,17 +259,16 @@ function maybe_push!(chart::Chart, arc::ActiveArc)
 end
 
 function maybe_push!(chart::Chart, arc::PassiveArc)
-    if arc ∈ chart
-        return false
-    else
-        push!(chart, arc)
-        return true
-    end
+    # We expect to avoid duplicate active arcs at the prediction stage, so
+    # this should always return true
+    # @assert arc ∉ chart
+    push!(chart, arc)
+    return true
 end
 
-function chart_parse(tokens, grammar, context::Context, strategy::AbstractStrategy)
-    chart = initial_chart(tokens, grammar, context, strategy)
-    agenda = initial_agenda(tokens, grammar, context, strategy)
+function chart_parse(tokens, grammar, strategy::AbstractStrategy)
+    chart = initial_chart(tokens, grammar, strategy)
+    agenda = initial_agenda(tokens, grammar, strategy)
     predictions = Predictions()
 
     while !isempty(agenda)
@@ -263,9 +276,9 @@ function chart_parse(tokens, grammar, context::Context, strategy::AbstractStrate
         # @show candidate
         if is_complete(candidate)
             # println("solving: ", candidate)
-            for output in solve(candidate)
-                # println("got output: ", output)
-                update!(chart, agenda, output, grammar, predictions, strategy)
+            solved = solve(candidate)
+            if !isempty(solved.outputs)
+                update!(chart, agenda, solve(candidate), grammar, predictions, strategy)
             end
         else
             update!(chart, agenda, candidate, grammar, predictions, strategy)
@@ -274,36 +287,25 @@ function chart_parse(tokens, grammar, context::Context, strategy::AbstractStrate
     chart
 end
 
-function matches_context(active::ActiveArc, passive::PassiveArc)
-   is_match(propagate(active.context, active.rule, active.constituents), output(passive))
-end
+# function matches_context(active::ActiveArc, passive::PassiveArc)
+#    is_match(propagate(active.context, active.rule, active.constituents), output(passive))
+# end
 
-matches_context(p::PassiveArc, a::ActiveArc) = matches_context(a, p)
+# matches_context(p::PassiveArc, a::ActiveArc) = matches_context(a, p)
 
 function update!(chart::Chart, agenda::Agenda, candidate::AbstractArc, grammar::Grammar, predictions::Predictions, strategy::AbstractStrategy)
     is_new = maybe_push!(chart, candidate)
-    if !is_new
-        return
-    end
+    @assert is_new
     for mate in mates(chart, candidate)
-        # @show mate
-        if matches_context(candidate, mate)
-            push!(agenda, combine(candidate, mate))
-        end
+        push!(agenda, combine(candidate, mate))
     end
     predict!(agenda, chart, candidate, grammar, predictions, strategy)
     # @show agenda
 end
 
 function predict!(agenda::Agenda, chart::Chart, candidate::ActiveArc, grammar::Grammar, predictions::Predictions, ::TopDown)
-    new_context::Context = propagate(context(candidate), rule(candidate), constituents(candidate))
-    if isempty(new_context)
-        return
-    end
-    key = (next_needed(candidate), candidate.stop, new_context)
+    key = (next_needed(candidate), candidate.stop)
     is_new = maybe_push!(predictions, key)
-    # show_key = (rhs(rule(candidate))[num_completions(candidate) + 1], candidate.stop, new_context)
-    # @show show_key is_new
     if is_new
         for (rule, rule_id) in grammar.productions
             if candidate.stop + length(rhs(rule_id)) > num_tokens(chart)
@@ -313,7 +315,7 @@ function predict!(agenda::Agenda, chart::Chart, candidate::ActiveArc, grammar::G
             end
             if lhs(rule_id) == next_needed(candidate)
                 hypothesis = ActiveArc(candidate.stop, candidate.stop, rule, rule_id,
-                                       new_context, Constituents())
+                                       Constituents())
                 # @show hypothesis
                 push!(agenda, hypothesis)
             end

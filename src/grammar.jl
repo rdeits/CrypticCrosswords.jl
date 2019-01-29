@@ -187,15 +187,37 @@ end
 propagate(context::Context, ::Synonym, ::Tuple{Phrase}, inputs) = unconstrained_context()
 
 
+function move_right!(buffer, start, stop)
+    @boundscheck start >= 1 || throw(BoundsError())
+    @boundscheck stop <= (length(buffer) - 1) || throw(BoundsError())
+    @boundscheck start <= stop || throw(ArgumentError("start ($start) must be <= stop ($stop)"))
+
+    swap = buffer[stop + 1]
+    for i in stop:-1:start
+        buffer[i + 1] = buffer[i]
+    end
+    buffer[start] = swap
+end
+
 """
 All insertions of a into b
 """
 function insertions(a, b)
     results = String[]
-    for breakpoint in 1:(length(b) - 1)
-        s = string(b[1:breakpoint], a, b[(breakpoint+1):end])
-        if s in SUBSTRINGS
-            push!(results, s)
+    buffer = Vector{Char}()
+    len_a = length(a)
+    len_b = length(b)
+    sizehint!(buffer, len_a + len_b)
+    for c in a
+        push!(buffer, c)
+    end
+    for c in b
+        push!(buffer, c)
+    end
+    for i in 1:(len_b - 1)
+        move_right!(buffer, i, len_a + i - 1)
+        if buffer in SUBSTRINGS
+            push!(results, join(buffer))
         end
     end
     results

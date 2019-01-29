@@ -1,25 +1,3 @@
-function straddling_words(phrase, condition=is_word)
-    results = String[]
-    combined = replace(phrase, ' ' => "")
-    first_space = findfirst(isequal(' '), phrase)
-    if first_space === nothing
-        return results
-    end
-    first_word_length = first_space - 1
-    last_space = findlast(isequal(' '), phrase)
-    last_word_length = length(phrase) - last_space
-
-    for stop_index in (length(combined) - last_word_length + 1):(length(combined) - 1)
-        for start_index in 2:first_word_length
-            candidate = combined[start_index:stop_index]
-            if condition(candidate)
-                push!(results, candidate)
-            end
-        end
-    end
-    results
-end
-
 function is_anagram(w1::AbstractString, w2::AbstractString)
     sort(collect(replace(w1, " " => ""))) == sort(collect(replace(w2, " " => "")))
 end

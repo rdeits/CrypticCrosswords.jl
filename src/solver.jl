@@ -94,11 +94,13 @@ function wordplay(arc::PassiveArc)
     first(output(x) for x in constituents(arc) if lhs(rule(x)) === Wordplay())
 end
 
-function solutions(chart::Chart)
+function solutions(chart::Chart, context::Context, pattern::Regex)
     results = Tuple{PassiveArc, String, Float64}[]
     for p in complete_parses(chart)
         for output in p.outputs
-            push!(results, (p, output, solution_quality(p, output)))
+            if is_match(context, output) && occursin(pattern, output)
+                push!(results, (p, output, solution_quality(p, output)))
+            end
         end
     end
     sort!(results, by = x -> x[3], rev = true)
@@ -114,8 +116,6 @@ function solve(clue::AbstractString, context::Context, pattern::Regex=r"")
     grammar = Grammar(rules)
     tokens = normalize.(split(clue))
     chart = chart_parse(tokens, grammar, TopDown());
-    results = solutions(chart)
-    filter!(((arc, output, score),) -> is_match(context, output), results)
-    filter!(((arc, output, score),) -> occursin(pattern, output), results)
+    results = solutions(chart, context, pattern)
     results
 end

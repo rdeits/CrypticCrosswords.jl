@@ -31,4 +31,22 @@ function push(v::AbstractVector{T}, x::T) where {T}
     result
 end
 
+@generated function SFCVector{N, T}(x::NTuple{N2, T}) where {N, T, N2}
+    args = []
+    for i in 1:N2
+        push!(args, :(x[$i]))
+    end
+    for i in (N2 + 1):N
+        push!(args, :(x[$N2]))
+    end
+    quote
+        $N2 <= $N || throw(ArgumentError("Tuple with $N2 elements is too long for SFCVector{$N}"))
+        SFCVector{$N, $T}($N2, $(Expr(:tuple, args...)))
+    end
+end
+
+SFCVector{N}(x::NTuple{N2, T}) where {N, T, N2} = SFCVector{N, T}(x)
+
+Base.convert(::Type{<:SFCVector{N}}, x::NTuple) where {N} = SFCVector{N}(x)
+
 end

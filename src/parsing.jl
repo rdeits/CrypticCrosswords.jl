@@ -47,20 +47,26 @@ end
 const Constituents = Vector{PassiveArc}
 const Agenda = Vector{ActiveArc}
 
-@generated function _apply(head::GrammaticalSymbol,
-                           args::Tuple{Vararg{GrammaticalSymbol, N}},
-                           inputs) where {N}
-    quote
-        outputs = Vector{String}()
-        derivations = Vector{NTuple{N, String}}()
-        for input in $(Expr(:call, :product, [:(inputs[$i]) for i in 1:N]...))
-            for output in apply(head, args, input)
-                push!(outputs, output)
-                push!(derivations, input)
-            end
-        end
-        outputs, derivations
+@generated function _product(inputs, ::Val{N}) where {N}
+    Expr(:call, :product, [:(inputs[$i]) for i in 1:N]...)
+end
+
+function _apply(head::GrammaticalSymbol, args::Tuple{Vararg{GrammaticalSymbol, N}}, inputs) where {N}
+    outputs = Vector{String}()
+    # derivations = Dict{String, Vector{NTuple{N, String}}}()
+    # @show head args
+    for input in _product(inputs, Val{N}())
+        # @show input
+        len_before = length(outputs)
+        apply!(outputs, head, args, input)
+        # @show outputs[(len_before + 1):end]
+        # for i in len_before:length(outputs)
+        #     push!(derivations, input)
+        # end
     end
+    derivations = Vector{NTuple{N, String}}()
+    unique!(outputs)
+    outputs, derivations
 end
 
 function apply(rule::Rule,

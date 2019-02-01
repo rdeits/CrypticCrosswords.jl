@@ -176,14 +176,28 @@ end
 # end
 
 
+# TODO: traverse the substrings trie with word a, then start trying to traverse
+# with b. Only return the result if the traversal succeedsk
+
 function apply!(out, ::Wordplay, ::Tuple{Wordplay, Wordplay}, (a, b))
-    combined = string(a, b)
-    if combined in SUBSTRINGS
-        push!(out, combined)
-        # [combined]
+    # trie = SUBSTRINGS[a]
+    # if trie === nothing
+    #     return
     # else
-    #     String[]
+    #     if b in trie
+    #         push!(out, string(a, b))
+    #     end
+    # end
+    if has_concatenation(SUBSTRINGS, a, b)
+        push!(out, string(a, b))
     end
+    # combined = string(a, b)
+    # if combined in SUBSTRINGS
+    #     push!(out, combined)
+    #     # [combined]
+    # # else
+    # #     String[]
+    # end
 end
 # propagate(context::Context, ::Wordplay, ::Tuple{Wordplay, Wordplay}, inputs) = propagate_concatenation(context, inputs)
 

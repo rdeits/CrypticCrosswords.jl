@@ -284,7 +284,7 @@ function chart_parse(tokens, grammar, strategy::AbstractStrategy)
             # println("solving: ", candidate)
             solved = solve(candidate)
             if !isempty(solved.outputs)
-                update!(chart, agenda, solve(candidate), grammar, predictions, strategy)
+                update!(chart, agenda, solved, grammar, predictions, strategy)
             end
         else
             update!(chart, agenda, candidate, grammar, predictions, strategy)

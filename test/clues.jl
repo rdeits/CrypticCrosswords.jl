@@ -4,25 +4,73 @@ using CrypticCrosswords: definition, wordplay
 
 @testset "Known clues" begin
     known_clues = [
-        ("initially babies are naked", 4, "naked", "bare"),
-        ("spin broken shingle", 7, "spin", "english"),
-        ("male done mixing drink", 8, "drink", "lemonade"),
-        ("mollify with fried sausage", 7, "mollify", "assuage"),
-        ("Dotty, Sue, Pearl, Joy", 8, "joy", "pleasure"),
-        ("Initially congoers like us eschew solving hints", 5, "hints", "clues"),
-        ("Significant ataxia overshadows choral piece", 7, "piece", "cantata"), # definition should actually be "choral piece"
-        ("singers in special tosca production", 5, "singers", "altos"),
-        ("Desire bawdy slut", 4, "desire", "lust"),
+        ("Ach, Cole wrecked something in the ear", 7, "ear", "cochlea"), # should be "something in the ear"
+        ("aerial worker anne on the way up", 7, "aerial", "antenna"),
+        ("at first congoers like us eschew solving hints", 5, "hints", "clues"),
+        ("attractive female engraving", 8, "attractive", "fetching"),
+        ("canoe wrecked in large sea", 5, "sea", "ocean"), # should be "large sea"
         ("Carryall's gotta be upset", 7, "carryalls", "tote bag"),
+        ("couch is unfinished until now", 4, "couch", "sofa"),
+        ("cuts up curtains differently for those who use needles", 14, "those who use needles", "acupuncturists"),
+        ("Desire bawdy slut", 4, "desire", "lust"),
+        ("Dotty, Sue, Pearl, Joy", 8, "joy", "pleasure"),
+        ("excitedly print Camus document", 10, "document", "manuscript"),
+        ("form of licit sea salt", 8, "salt", "silicate"),
+        ("improve meal or I eat nuts", 10, "improve", "ameliorate"),
+        ("in glee over unusual color", 10, "color", "olive green"),
         ("initial meetings disappoint rosemary internally", 6, "initial meetings", "intros"),
-        ("couch is unfinished until now", 4, "couch", "sofa")
+        ("Initially congoers like us eschew solving hints", 5, "hints", "clues"),
+        ("initially babies are naked", 4, "naked", "bare"),
+        ("it's lunacy for dam to back onto ness", 7, "its lunacy", "madness"),
+        ("hungary's leader, stuffy and bald", 8, "bald", "hairless"),
+        ("male done mixing drink", 8, "drink", "lemonade"),
+        ("model unusually creepy hat", 9, "model", "archetype"),
+        ("mollify with fried sausage", 7, "mollify", "assuage"),
+        ("M's Rob Titon pitching slider?", 10, "slider", "trombonist"),
+        ("Orchestra: I'm reorganizing conductor", 11, "conductor", "choirmaster"),
+        ("returning regal drink", 5, "drink", "lager"),
+        ("she literally describes high society", 5, "society", "elite"), # should be "high society"
+        ("Significant ataxia overshadows choral piece", 7, "piece", "cantata"), # definition should actually be "choral piece"
+        ("signore redefined districts", 7, "districts", "regions"),
+        ("singers in special tosca production", 5, "singers", "altos"),
+        ("sink graduate with sin", 5, "sink", "basin"),
+        ("spin broken shingle", 7, "spin", "english"),
+        ("St. Michael transforms metal transformer", 9, "transformer", "alchemist"), # should be "metal transformer"
+        ("stirs, spilling soda", 4, "stirs", "ados"),
+        ("surprisingly rank height as important", 12, "important", "earthshaking"),
+        ("they primarily play Diplomacy", 4, "diplomacy", "tact"),
+        ("trimmed complicated test", 7, "test", "midterm"),
+    ]
+
+    badly_ranked_clues = [
+        ("anagram marvellously conceals structure of language", 7, "language", "grammar"),
+        ("clean oneself, but in reverse", 3, "clean oneself", "tub"),
+        ("during exam I diagrammed viscera", 4, "during", "amid"),
+        ("fish or insect for captain", 7, "fish or insect", "skipper"),
+        ("figure out price he'd restructured", 8, "figure out", "decipher"),
+        ("made mistake in deer reduction", 5, "made mistake", "erred"),
+        ("join trio of astronomers in marsh", 6, "join", "fasten"),
+        ("sat up, interrupting sibling's balance", 6, "balance", "stasis"),
+        ("setting for a cello composition", 6, "setting", "locale"),
+        ("small bricks included among durable goods", 4, "small bricks", "lego"),
+        ("waste pores vent exhausted resources", 9, "exhausted resources", "overspent"),
+
     ]
 
     @time for (clue, length, expected_definition, expected_wordplay) in known_clues
         @show clue
         solutions = @time solve(clue, Context(length, length, IsWord))
-        (best, score) = first(solutions)
-        @test definition(best) == expected_definition
-        @test wordplay(best) == expected_wordplay
+        (arc, output, score) = first(solutions)
+        @test definition(arc) == expected_definition
+        @test output == expected_wordplay
+    end
+
+    @time for (clue, length, expected_definition, expected_wordplay) in badly_ranked_clues
+        @show clue
+        solutions = @time solve(clue, Context(length, length, IsWord))
+        @test any(solutions) do solution
+            (arc, output, score) = solution
+            definition(arc) == expected_definition && output == expected_wordplay
+        end
     end
 end

@@ -1,20 +1,33 @@
 abstract type GrammaticalSymbol end
 
-struct Synonym <: GrammaticalSymbol end
 struct Token <: GrammaticalSymbol end
 struct Phrase <: GrammaticalSymbol end
-struct Wordplay <: GrammaticalSymbol end
 struct Clue <: GrammaticalSymbol end
 struct Definition <: GrammaticalSymbol end
-struct Filler <: GrammaticalSymbol end
-struct Abbreviation <: GrammaticalSymbol end
+
+abstract type AbstractWordplay <: GrammaticalSymbol end
+struct JoinedPhrase <: AbstractWordplay end
+struct Filler <: AbstractWordplay end
+struct Abbreviation <: AbstractWordplay end
+struct Reversal <: AbstractWordplay end
+struct Anagram <: AbstractWordplay end
+struct Substring <: AbstractWordplay end
+struct Insertion <: AbstractWordplay end
+struct Straddle <: AbstractWordplay end
+struct Literal <: AbstractWordplay end
+struct Synonym <: AbstractWordplay end
+struct Wordplay <: AbstractWordplay end
+
+struct InnerInsertion <: GrammaticalSymbol end
+struct OuterInsertion <: GrammaticalSymbol end
+struct Initials <: GrammaticalSymbol end
 
 abstract type AbstractIndicator <: GrammaticalSymbol end
 struct AnagramIndicator <: AbstractIndicator end
 struct ReverseIndicator <: AbstractIndicator end
 struct InsertABIndicator <: AbstractIndicator end
 struct InsertBAIndicator <: AbstractIndicator end
-struct HeadIndicator <: AbstractIndicator end
+struct InitialsIndicator <: AbstractIndicator end
 struct TailIndicator <: AbstractIndicator end
 struct StraddleIndicator <: AbstractIndicator end
 struct InitialSubstringIndicator <: AbstractIndicator end
@@ -26,7 +39,7 @@ rhs(r::Pair) = last(r)
 
 macro apply_by_reversing(Head, Args...)
     quote
-        $(esc(:apply))(H::$(esc(Head)), A::Tuple{$(esc.(Args)...)}, words) = $(esc(:apply))(H, reverse(A), reverse(words))
+        $(esc(:apply!))(out, H::$(esc(Head)), A::Tuple{$(esc.(Args)...)}, words) = $(esc(:apply!))(out, H, reverse(A), reverse(words))
     end
 end
 
@@ -34,45 +47,79 @@ function cryptics_rules()
     Rule[
         Phrase() => (Token(),),
         Phrase() => (Phrase(), Token()),
+
+        JoinedPhrase() => (Phrase(),),
+
         AnagramIndicator() => (Phrase(),),
-        Wordplay() => (AnagramIndicator(), Phrase()),
-        Wordplay() => (Phrase(), AnagramIndicator()),
+        Anagram() => (AnagramIndicator(), JoinedPhrase()),
+        Anagram() => (JoinedPhrase(), AnagramIndicator()),
+
         ReverseIndicator() => (Phrase(),),
-        Wordplay() => (ReverseIndicator(), Phrase()),
-        Wordplay() => (Phrase(), ReverseIndicator()),
-        HeadIndicator() => (Phrase(),),
-        Wordplay() => (HeadIndicator(), Phrase()),
-        Wordplay() => (Phrase(), HeadIndicator()),
-        TailIndicator() => (Phrase(),),
-        Wordplay() => (TailIndicator(), Phrase()),
-        Wordplay() => (Phrase(), TailIndicator()),
+        Reversal() => (ReverseIndicator(), JoinedPhrase()),
+        Reversal() => (JoinedPhrase(), ReverseIndicator()),
+
+        InitialsIndicator() => (Phrase(),),
+        Initials() => (Token(),),
+        Initials() => (Initials(), Token()),
+        Substring() => (InitialsIndicator(), Initials()),
+        Substring() => (Initials(), InitialsIndicator()),
+
+        # HeadIndicator() => (Phrase(),),
+        # Substring() => (HeadIndicator(), Phrase()),
+        # Substring() => (Phrase(), HeadIndicator()),
+        # TailIndicator() => (Phrase(),),
+        # Substring() => (TailIndicator(), Phrase()),
+        # Substring() => (Phrase(), TailIndicator()),
+
         InsertABIndicator() => (Phrase(),),
         InsertBAIndicator() => (Phrase(),),
-        Wordplay() => (InsertABIndicator(), Wordplay(), Wordplay()),
-        Wordplay() => (Wordplay(), InsertABIndicator(), Wordplay()),
-        Wordplay() => (Wordplay(), Wordplay(), InsertABIndicator()),
-        Wordplay() => (InsertBAIndicator(), Wordplay(), Wordplay()),
-        Wordplay() => (Wordplay(), InsertBAIndicator(), Wordplay()),
-        Wordplay() => (Wordplay(), Wordplay(), InsertBAIndicator()),
+        InnerInsertion() => (Synonym(),),
+        InnerInsertion() => (JoinedPhrase(),),
+        InnerInsertion() => (Substring(),),
+        OuterInsertion() => (Synonym(),),
+        OuterInsertion() => (JoinedPhrase(),),
+        Insertion() => (InsertABIndicator(), InnerInsertion(), OuterInsertion()),
+        Insertion() => (InnerInsertion(), InsertABIndicator(), OuterInsertion()),
+        Insertion() => (InnerInsertion(), OuterInsertion(), InsertABIndicator()),
+        Insertion() => (InsertBAIndicator(), OuterInsertion(), InnerInsertion()),
+        Insertion() => (OuterInsertion(), InsertBAIndicator(), InnerInsertion()),
+        Insertion() => (OuterInsertion(), InnerInsertion(), InsertBAIndicator()),
+
         StraddleIndicator() => (Phrase(),),
-        Wordplay() => (StraddleIndicator(), Phrase()),
-        Wordplay() => (Phrase(), StraddleIndicator()),
-        Wordplay() => (Token(),),
-        Wordplay() => (Synonym(),),
-        Wordplay() => (Wordplay(), Wordplay()),
-        Wordplay() => (Abbreviation(),),
-        InitialSubstringIndicator() => (Phrase(),),
-        Wordplay() => (InitialSubstringIndicator(), Phrase()),
-        Wordplay() => (Phrase(), InitialSubstringIndicator()),
-        Wordplay() => (InitialSubstringIndicator(), Synonym()),
-        Wordplay() => (Synonym(), InitialSubstringIndicator()),
-        FinalSubstringIndicator() => (Phrase(),),
-        Wordplay() => (FinalSubstringIndicator(), Synonym()),
-        Wordplay() => (Synonym(), FinalSubstringIndicator()),
+        Straddle() => (StraddleIndicator(), Phrase()),
+        Straddle() => (Phrase(), StraddleIndicator()),
+
+        Literal() => (Token(),),
         Abbreviation() => (Phrase(),),
         Filler() => (Token(),),
         Synonym() => (Phrase(),),
+
+        InitialSubstringIndicator() => (Phrase(),),
+        Substring() => (InitialSubstringIndicator(), Token()),
+        Substring() => (Token(), InitialSubstringIndicator()),
+        Substring() => (InitialSubstringIndicator(), Synonym()),
+        Substring() => (Synonym(), InitialSubstringIndicator()),
+
+        FinalSubstringIndicator() => (Phrase(),),
+        Substring() => (FinalSubstringIndicator(), Token()),
+        Substring() => (Token(), FinalSubstringIndicator()),
+        Substring() => (FinalSubstringIndicator(), Synonym()),
+        Substring() => (Synonym(), FinalSubstringIndicator()),
+
         Definition() => (Phrase(),),
+
+        Wordplay() => (JoinedPhrase(),),
+        Wordplay() => (Abbreviation(),),
+        Wordplay() => (Reversal(),),
+        Wordplay() => (Anagram(),),
+        Wordplay() => (Substring(),),
+        Wordplay() => (Insertion(),),
+        Wordplay() => (Straddle(),),
+        Wordplay() => (Literal(),),
+        Wordplay() => (Synonym(),),
+        Wordplay() => (Wordplay(), Wordplay()),
+        Wordplay() => (Wordplay(), Filler(), Wordplay()),
+
         Clue() => (Wordplay(), Definition()),
         Clue() => (Definition(), Wordplay()),
         Clue() => (Wordplay(), Filler(), Definition()),
@@ -80,260 +127,188 @@ function cryptics_rules()
     ]
 end
 
-propagate(context::Context, rule::Rule, inputs::AbstractVector) = propagate(context, lhs(rule), rhs(rule), inputs)
+# Fallback method for one-argument rules which just pass their argument
+# through
+apply!(out, ::GrammaticalSymbol, ::Tuple{GrammaticalSymbol}, (word,)) = push!(out, word)
 
-# Fallback methods for one-argument rules which just pass
-# the context down and the output up
-apply(::GrammaticalSymbol, ::Tuple{GrammaticalSymbol}, (word,)) = [word]
-propagate(context::Context, head::GrammaticalSymbol, args::Tuple{GrammaticalSymbol}, inputs) = context
-propagate(context::Context, head::AbstractIndicator, args::Tuple{GrammaticalSymbol}, inputs) = unconstrained_context()
 
-apply(::Phrase, ::Tuple{Phrase, Token}, (a, b)) = [string(a, " ", b)]
-propagate(context::Context, ::Phrase, ::Tuple{Phrase, Token}, inputs) = propagate_concatenation(context, inputs)
+apply!(out, ::JoinedPhrase, ::Tuple{Phrase}, (p,)) = push!(out, replace(p, ' ' => ""))
 
-function propagate_concatenation(context, inputs)
-    @assert 0 <= length(inputs) <= 1
-    if length(inputs) == 0
-        Context(1,
-                context.max_length - 1,
-                if context.constraint == IsWord || context.constraint == IsPrefix
-                    IsPrefix
-                else
-                    nothing
-                end)
-    else
-        len = num_letters(output(first(inputs)))
-        Context(max(1, context.min_length - len),
-                context.max_length - len,
-                if context.constraint == IsWord || context.constraint == IsSuffix
-                    IsSuffix
-                else
-                    nothing
-                end)
+const MAX_PHRASE_LENGTH = 4
+
+function apply!(out, ::Phrase, ::Tuple{Phrase, Token}, (phrase, token))
+    if count(isequal(' '), phrase) < MAX_PHRASE_LENGTH - 1
+        push!(out, string(phrase, " ", token))
     end
 end
 
-function apply(::Wordplay, ::Tuple{AnagramIndicator, Phrase}, (indicator, phrase))
-    results = get(Vector{String}, WORDS_BY_ANAGRAM, join(sort(collect(replace(phrase, " " => "")))))
-    filter(w -> w != phrase, results)
+function apply!(out, ::Anagram, ::Tuple{AnagramIndicator, JoinedPhrase}, (indicator, phrase))
+    key = join(sort(collect(phrase)))
+    if key in keys(WORDS_BY_ANAGRAM)
+        for word in WORDS_BY_ANAGRAM[key]
+            if word != phrase
+                push!(out, word)
+            end
+        end
+    end
 end
-propagate(context::Context, ::Wordplay, ::Tuple{AnagramIndicator, Phrase}, inputs) = propagate_to_argument(context, 2, inputs, nothing)
-@apply_by_reversing Wordplay Phrase AnagramIndicator
-propagate(context::Context, ::Wordplay, ::Tuple{Phrase, AnagramIndicator}, inputs) = propagate_to_argument(context, 1, inputs, nothing)
+@apply_by_reversing Anagram JoinedPhrase AnagramIndicator
 
-function propagate_to_argument(context, index, inputs, constraint=context.constraint)
-    if length(inputs) + 1 == index
-        Context(context.min_length, context.max_length, constraint)
-    else
-        unconstrained_context()
+function apply!(out, ::Wordplay, ::Tuple{Wordplay, Filler, Wordplay}, (a, filler, b))
+    apply!(out, Wordplay(), (Wordplay(), Wordplay()), (a, b))
+end
+
+function apply!(out, ::Wordplay, ::Tuple{Wordplay, Wordplay}, (a, b))
+    if has_concatenation(SUBSTRINGS, a, b)
+        push!(out, string(a, b))
     end
 end
 
-
-function apply(::Wordplay, ::Tuple{Wordplay, Wordplay}, (a, b))
-    combined = string(a, b)
-    if combined in SUBSTRINGS
-        [combined]
-    else
-        String[]
-    end
-end
-propagate(context::Context, ::Wordplay, ::Tuple{Wordplay, Wordplay}, inputs) = propagate_concatenation(context, inputs)
-
-apply(::Clue, ::Tuple{Wordplay, Definition}, (wordplay, definition)) = [wordplay]
-propagate(context::Context, ::Clue, ::Tuple{Wordplay, Definition}, inputs) = propagate_to_argument(context, 1, inputs)
+apply!(out, ::Clue, ::Tuple{Wordplay, Definition}, (wordplay, definition)) = push!(out, wordplay)
 @apply_by_reversing Clue Definition Wordplay
-propagate(context::Context, ::Clue, ::Tuple{Definition, Wordplay}, inputs) = propagate_to_argument(context, 2, inputs)
 
-apply(::Abbreviation, ::Tuple{Phrase}, (word,)) = copy(get(ABBREVIATIONS, word, String[]))
-propagate(context::Context, ::Abbreviation, ::Tuple{Phrase}, inputs) = unconstrained_context()
-
-apply(::Filler, ::Tuple{Token}, (word,)) = [""]
-propagate(context::Context, ::Filler, ::Tuple{Token}, inputs) = unconstrained_context()
-
-apply(::Clue, ::Tuple{Wordplay, Filler, Definition}, (w, f, d)) = [w]
-propagate(context::Context, ::Clue, ::Tuple{Wordplay, Filler, Definition}, inputs) = propagate_to_argument(context, 1, inputs)
-apply(::Clue, ::Tuple{Definition, Filler, Wordplay}, (d, f, w)) = [w]
-propagate(context::Context, ::Clue, ::Tuple{Definition, Filler, Wordplay}, inputs) = propagate_to_argument(context, 3, inputs)
-
-apply(::Wordplay, ::Tuple{ReverseIndicator, Phrase}, (indicator, word)) = [reverse(replace(word, " " => ""))]
-propagate(context::Context, ::Wordplay, ::Tuple{ReverseIndicator, Phrase}, inputs) = propagate_to_argument(context, 2, inputs, nothing)
-@apply_by_reversing Wordplay Phrase ReverseIndicator
-propagate(context::Context, ::Wordplay, ::Tuple{Phrase, ReverseIndicator}, inputs) = propagate_to_argument(context, 1, inputs, nothing)
-
-apply(::Wordplay, ::Tuple{HeadIndicator, Phrase}, (indicator, phrase)) = [join(first(word) for word in split(phrase))]
-propagate(context::Context, ::Wordplay, ::Tuple{HeadIndicator, Phrase}, inputs) =
-    length(inputs) == 1 ? Context(2, typemax(Int), nothing) : unconstrained_context()
-
-@apply_by_reversing Wordplay Phrase HeadIndicator
-propagate(context::Context, ::Wordplay, ::Tuple{Phrase, HeadIndicator}, inputs) =
-    length(inputs) == 0 ? Context(2, typemax(Int), nothing) : unconstrained_context()
-
-apply(::Wordplay, ::Tuple{TailIndicator, Phrase}, (indicator, phrase)) = [join(last(word) for word in split(phrase))]
-propagate(context::Context, ::Wordplay, ::Tuple{TailIndicator, Phrase}, inputs) =
-    length(inputs) == 1 ? Context(2, typemax(Int), nothing) : unconstrained_context()
-
-@apply_by_reversing Wordplay Phrase TailIndicator
-propagate(context::Context, ::Wordplay, ::Tuple{Phrase, TailIndicator}, inputs) =
-    length(inputs) == 0 ? Context(2, typemax(Int), nothing) : unconstrained_context()
-
-function apply(::Synonym, ::Tuple{Phrase}, (word,))
-    if word in keys(SYNONYMS[])
-        collect(SYNONYMS[][word])
-    else
-        String[]
+function apply!(out, ::Abbreviation, ::Tuple{Phrase}, (word,))
+    if word in keys(ABBREVIATIONS)
+        for abbrev in ABBREVIATIONS[word]
+            push!(out, abbrev)
+        end
     end
 end
-propagate(context::Context, ::Synonym, ::Tuple{Phrase}, inputs) = unconstrained_context()
 
+apply!(out, ::Filler, ::Tuple{Token}, (word,)) = push!(out, "")
+
+apply!(out, ::Clue, ::Tuple{Wordplay, Filler, Definition}, (w, f, d)) = push!(out, w)
+apply!(out, ::Clue, ::Tuple{Definition, Filler, Wordplay}, (d, f, w)) = push!(out, w)
+
+apply!(out, ::Reversal, ::Tuple{ReverseIndicator, JoinedPhrase}, (indicator, word)) = push!(out, reverse(word))
+@apply_by_reversing Reversal JoinedPhrase ReverseIndicator
+
+apply!(out, ::Initials, ::Tuple{Token}, (word,)) = push!(out, string(first(word)))
+function apply!(out, ::Initials, ::Tuple{Initials, Token}, (initials, token))
+    next_letter = string(first(token))
+    if has_concatenation(SUBSTRINGS, initials, next_letter)
+        push!(out, string(initials, next_letter))
+    end
+end
+
+apply!(out, ::Substring, ::Tuple{InitialsIndicator, Initials}, (indicator, initials)) = push!(out, initials)
+@apply_by_reversing Substring Initials InitialsIndicator
+
+apply!(out, ::Substring, ::Tuple{TailIndicator, Phrase}, (indicator, phrase)) = push!(out, join(last(word) for word in split(phrase)))
+@apply_by_reversing Substring Phrase TailIndicator
+
+function apply!(out, ::Synonym, ::Tuple{Phrase}, (word,))
+    if word in keys(SYNONYMS[])
+        for syn in SYNONYMS[][word]
+            push!(out, syn)
+        end
+    end
+end
+
+function move_right!(buffer, start, stop)
+    @boundscheck start >= 1 || throw(BoundsError())
+    @boundscheck stop <= (length(buffer) - 1) || throw(BoundsError())
+    @boundscheck start <= stop || throw(ArgumentError("start ($start) must be <= stop ($stop)"))
+
+    swap = buffer[stop + 1]
+    for i in stop:-1:start
+        buffer[i + 1] = buffer[i]
+    end
+    buffer[start] = swap
+end
 
 """
 All insertions of a into b
 """
-function insertions(a, b)
-    results = String[]
-    for breakpoint in 1:(length(b) - 1)
-        s = string(b[1:breakpoint], a, b[(breakpoint+1):end])
-        if s in SUBSTRINGS
-            push!(results, s)
+function insertions!(results, a, b)
+    len_a = length(a)
+    len_b = length(b)
+    if len_a == 0 || len_b == 0
+        return
+    end
+    buffer = Vector{Char}()
+    sizehint!(buffer, len_a + len_b)
+    for c in a
+        push!(buffer, c)
+    end
+    for c in b
+        push!(buffer, c)
+    end
+    for i in 1:(len_b - 1)
+        move_right!(buffer, i, len_a + i - 1)
+        if buffer in SUBSTRINGS
+            push!(results, join(buffer))
         end
     end
-    results
 end
 
-function propagate_to_insertion(context::Context, arg1::Integer, arg2::Integer, inputs)
-    if length(inputs) + 1 == arg1
-        Context(1,
-                context.max_length - 1,
-                nothing)
-    elseif length(inputs) + 1 == arg2
-        len = num_letters(output(inputs[arg1]))
-        Context(max(1, context.min_length - len),
-                context.max_length - len,
-                nothing)
-    else
-        unconstrained_context()
-    end
-end
+apply!(out, ::Insertion, ::Tuple{InsertABIndicator, Any, Any}, (indicator, a, b)) = insertions!(out, a, b)
 
-apply(::Wordplay, ::Tuple{InsertABIndicator, Wordplay, Wordplay}, (indicator, a, b)) = insertions(a, b)
-propagate(c::Context, ::Wordplay, ::Tuple{InsertABIndicator, Wordplay, Wordplay}, inputs) =
-    propagate_to_insertion(c, 2, 3, inputs)
+apply!(out, ::Insertion, ::Tuple{Any, InsertABIndicator, Any}, (a, indicator, b)) = insertions!(out, a, b)
 
-apply(::Wordplay, ::Tuple{Wordplay, InsertABIndicator, Wordplay}, (a, indicator, b)) = insertions(a, b)
-propagate(c::Context, ::Wordplay, ::Tuple{Wordplay, InsertABIndicator, Wordplay}, inputs) =
-    propagate_to_insertion(c, 1, 3, inputs)
+apply!(out, ::Insertion, ::Tuple{Any, Any, InsertABIndicator}, (a, b, indicator)) = insertions!(out, a, b)
 
-apply(::Wordplay, ::Tuple{Wordplay, Wordplay, InsertABIndicator}, (a, b, indicator)) = insertions(a, b)
-propagate(c::Context, ::Wordplay, ::Tuple{Wordplay, Wordplay, InsertABIndicator}, inputs) =
-    propagate_to_insertion(c, 1, 2, inputs)
+apply!(out, ::Insertion, ::Tuple{InsertBAIndicator, Any, Any}, (indicator, b, a)) = insertions!(out, a, b)
 
-apply(::Wordplay, ::Tuple{InsertBAIndicator, Wordplay, Wordplay}, (indicator, b, a)) = insertions(a, b)
-propagate(c::Context, ::Wordplay, ::Tuple{InsertBAIndicator, Wordplay, Wordplay}, inputs) =
-    propagate_to_insertion(c, 2, 3, inputs)
+apply!(out, ::Insertion, ::Tuple{Any, InsertBAIndicator, Any}, (b, indicator, a)) = insertions!(out, a, b)
 
-apply(::Wordplay, ::Tuple{Wordplay, InsertBAIndicator, Wordplay}, (b, indicator, a)) = insertions(a, b)
-propagate(c::Context, ::Wordplay, ::Tuple{Wordplay, InsertBAIndicator, Wordplay}, inputs) =
-    propagate_to_insertion(c, 1, 3, inputs)
+apply!(out, ::Insertion, ::Tuple{Any, Any, InsertBAIndicator}, (b, a, indicator)) = insertions!(out, a, b)
 
-apply(::Wordplay, ::Tuple{Wordplay, Wordplay, InsertBAIndicator}, (b, a, indicator)) = insertions(a, b)
-propagate(c::Context, ::Wordplay, ::Tuple{Wordplay, Wordplay, InsertBAIndicator}, inputs) =
-    propagate_to_insertion(c, 1, 2, inputs)
-
-apply(::Wordplay, ::Tuple{StraddleIndicator, Phrase}, (indicator, phrase)) = straddling_words(phrase)
-function propagate(context::Context, ::Wordplay, ::Tuple{StraddleIndicator, Phrase}, inputs)
-    if length(inputs) == 1
-        Context(2 + context.min_length,
-                typemax(Int),
-                nothing)
-    else
-        unconstrained_context()
-    end
-end
-
-apply(::Wordplay, ::Tuple{Phrase, StraddleIndicator}, (phrase, indicator)) = straddling_words(phrase)
-function propagate(context::Context, ::Wordplay, ::Tuple{Phrase, StraddleIndicator}, inputs)
-    if length(inputs) == 0
-        Context(2 + context.min_length,
-                typemax(Int),
-                nothing)
-    else
-        unconstrained_context()
-    end
-end
-
-function apply(::Wordplay, ::Tuple{InitialSubstringIndicator, Union{Phrase, Synonym}}, (indicator, phrase))
+function straddling_words!(results, phrase, condition=is_word)
     combined = replace(phrase, ' ' => "")
-    results = String[]
+    first_space = findfirst(isequal(' '), phrase)
+    if first_space === nothing
+        return results
+    end
+    first_word_length = first_space - 1
+    last_space = findlast(isequal(' '), phrase)
+    last_word_length = length(phrase) - last_space
+
+    for stop_index in (length(combined) - last_word_length + 1):(length(combined) - 1)
+        for start_index in 2:first_word_length
+            candidate = combined[start_index:stop_index]
+            if condition(candidate)
+                push!(results, candidate)
+            end
+        end
+    end
+end
+
+
+apply!(out, ::Straddle, ::Tuple{StraddleIndicator, Phrase}, (indicator, phrase)) = straddling_words!(out, phrase)
+@apply_by_reversing Straddle Phrase StraddleIndicator
+
+function apply!(out, ::Substring, ::Tuple{InitialSubstringIndicator, Union{Token, Synonym}}, (indicator, phrase))
+    combined = replace(phrase, ' ' => "")
     len = length(combined)
     for i in 2:3
         if len > i + 1
-            push!(results, combined[1:i])
+            push!(out, combined[1:i])
         end
     end
     if len > 4
-        push!(results, combined[1:end-1])
+        push!(out, combined[1:end-1])
     end
     if iseven(len)
         first_half = combined[1:(len ÷ 2)]
-        if first_half ∉ results
-            push!(results, first_half)
+        if first_half ∉ out
+            push!(out, first_half)
         end
     end
-    results
 end
-function propagate(context::Context, ::Wordplay, ::Tuple{InitialSubstringIndicator, Union{Phrase, Synonym}}, inputs)
-    if length(inputs) == 1
-        Context(1 + context.min_length,
-                typemax(Int),
-                nothing)
-    else
-        unconstrained_context()
-    end
-end
-@apply_by_reversing Wordplay Union{Phrase, Synonym} InitialSubstringIndicator
-function propagate(context::Context, ::Wordplay, ::Tuple{Union{Phrase, Synonym}, InitialSubstringIndicator}, inputs)
-    if length(inputs) == 0
-        Context(1 + context.min_length,
-                typemax(Int),
-                nothing)
-    else
-        unconstrained_context()
-    end
-end
+@apply_by_reversing Substring Union{Token, Synonym} InitialSubstringIndicator
 
-function apply(::Wordplay, ::Tuple{FinalSubstringIndicator, Union{Phrase, Synonym}}, (indicator, phrase))
+function apply!(out, ::Substring, ::Tuple{FinalSubstringIndicator, Union{Token, Synonym}}, (indicator, phrase))
     combined = replace(phrase, ' ' => "")
-    results = String[]
     len = length(combined)
     if len > 2
-        push!(results, combined[2:end])
+        push!(out, combined[2:end])
     end
     if iseven(len)
         last_half = combined[(len ÷ 2 + 1):end]
-        if last_half ∉ results
-            push!(results, last_half)
+        if last_half ∉ out
+            push!(out, last_half)
         end
     end
-    results
 end
-function propagate(context::Context, ::Wordplay, ::Tuple{FinalSubstringIndicator, Union{Phrase, Synonym}}, inputs)
-    if length(inputs) == 1
-        Context(1 + context.min_length,
-                typemax(Int),
-                nothing)
-    else
-        unconstrained_context()
-    end
-end
-@apply_by_reversing Wordplay Union{Phrase, Synonym} FinalSubstringIndicator
-function propagate(context::Context, ::Wordplay, ::Tuple{Union{Phrase, Synonym}, FinalSubstringIndicator}, inputs)
-    if length(inputs) == 0
-        Context(1 + context.min_length,
-                typemax(Int),
-                nothing)
-    else
-        unconstrained_context()
-    end
-end
-
+@apply_by_reversing Substring Union{Token, Synonym} FinalSubstringIndicator

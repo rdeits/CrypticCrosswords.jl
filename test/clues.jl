@@ -22,6 +22,7 @@ using CrypticCrosswords: definition, wordplay
         ("Significant ataxia overshadows choral piece", 7, "piece", "cantata"), # definition should actually be "choral piece"
         ("signore redefined districts", 7, "districts", "regions"),
         ("singers in special tosca production", 5, "singers", "altos"),
+        ("sink graduate with sin", 5, "sink", "basin"),
         ("spin broken shingle", 7, "spin", "english"),
         ("stirs, spilling soda", 4, "stirs", "ados"),
         ("surprisingly rank height as important", 12, "important", "earthshaking"),

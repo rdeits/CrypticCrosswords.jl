@@ -47,22 +47,15 @@ end
 const Constituents = Vector{PassiveArc}
 const Agenda = Vector{ActiveArc}
 
-@generated function _product(inputs, ::Val{N}) where {N}
-    Expr(:call, :product, [:(inputs[$i]) for i in 1:N]...)
+@generated function _output_product(inputs, ::Val{N}) where {N}
+    Expr(:call, :product, [:(outputs(inputs[$i])) for i in 1:N]...)
 end
 
 function _apply(head::GrammaticalSymbol, args::Tuple{Vararg{GrammaticalSymbol, N}}, inputs) where {N}
     outputs = Vector{String}()
-    # derivations = Dict{String, Vector{NTuple{N, String}}}()
-    # @show head args
-    for input in _product(inputs, Val{N}())
-        # @show input
+    for input in _output_product(inputs, Val{N}())
         len_before = length(outputs)
         apply!(outputs, head, args, input)
-        # @show outputs[(len_before + 1):end]
-        # for i in len_before:length(outputs)
-        #     push!(derivations, input)
-        # end
     end
     derivations = Vector{NTuple{N, String}}()
     unique!(outputs)
@@ -71,7 +64,7 @@ end
 
 function apply(rule::Rule,
                 constituents::Constituents)
-    _apply(lhs(rule), rhs(rule), outputs.(constituents))
+    _apply(lhs(rule), rhs(rule), constituents)
 end
 
 function solve(arc::ActiveArc)
@@ -292,12 +285,6 @@ function chart_parse(tokens, grammar, strategy::AbstractStrategy)
     end
     chart
 end
-
-# function matches_context(active::ActiveArc, passive::PassiveArc)
-#    is_match(propagate(active.context, active.rule, active.constituents), output(passive))
-# end
-
-# matches_context(p::PassiveArc, a::ActiveArc) = matches_context(a, p)
 
 function update!(chart::Chart, agenda::Agenda, candidate::AbstractArc, grammar::Grammar, predictions::Predictions, strategy::AbstractStrategy)
     is_new = maybe_push!(chart, candidate)

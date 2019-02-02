@@ -26,43 +26,6 @@ include("grammar.jl")
 include("parsing.jl")
 include("solver.jl")
 
-# struct Trie{T}
-#     children::Dict{T, Trie{T}}
-# end
-
-# Trie{T}() where {T} = Trie{T}(Dict{T, Trie{T}}())
-
-# function Base.push!(t::Trie, x)
-#     T = eltype(x)
-#     for element in x
-#         t = get!(Trie{T}, t.children, element)
-#     end
-# end
-
-# function Base.show(io::IO, t::Trie{T}) where {T}
-#     print(io, "Trie{$T}(...)")
-# end
-
-# function Base.in(x, t::Trie)
-#     for element in x
-#         t = get(t.children, element, nothing)
-#         if t === nothing
-#             return false
-#         end
-#     end
-#     return true
-# end
-
-# function Base.getindex(t::Trie, x)
-#     for element in x
-#         t = get(t.children, element, nothing)
-#         if t === nothing
-#             return nothing
-#         end
-#     end
-#     return t
-# end
-
 struct PTrie{N}
     mask::UInt
     slots::BitArray{1}

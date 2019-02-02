@@ -18,14 +18,16 @@ struct Literal <: AbstractWordplay end
 struct Synonym <: AbstractWordplay end
 struct Wordplay <: AbstractWordplay end
 
-struct InsertArg <: GrammaticalSymbol end
+struct InnerInsertion <: GrammaticalSymbol end
+struct OuterInsertion <: GrammaticalSymbol end
+struct Initials <: GrammaticalSymbol end
 
 abstract type AbstractIndicator <: GrammaticalSymbol end
 struct AnagramIndicator <: AbstractIndicator end
 struct ReverseIndicator <: AbstractIndicator end
 struct InsertABIndicator <: AbstractIndicator end
 struct InsertBAIndicator <: AbstractIndicator end
-struct HeadIndicator <: AbstractIndicator end
+struct InitialsIndicator <: AbstractIndicator end
 struct TailIndicator <: AbstractIndicator end
 struct StraddleIndicator <: AbstractIndicator end
 struct InitialSubstringIndicator <: AbstractIndicator end
@@ -56,24 +58,32 @@ function cryptics_rules()
         Reversal() => (ReverseIndicator(), JoinedPhrase()),
         Reversal() => (JoinedPhrase(), ReverseIndicator()),
 
-        HeadIndicator() => (Phrase(),),
-        Substring() => (HeadIndicator(), Phrase()),
-        Substring() => (Phrase(), HeadIndicator()),
+        InitialsIndicator() => (Phrase(),),
+        Initials() => (Token(),),
+        Initials() => (Initials(), Token()),
+        Substring() => (InitialsIndicator(), Initials()),
+        Substring() => (Initials(), InitialsIndicator()),
 
-        TailIndicator() => (Phrase(),),
-        Substring() => (TailIndicator(), Phrase()),
-        Substring() => (Phrase(), TailIndicator()),
+        # HeadIndicator() => (Phrase(),),
+        # Substring() => (HeadIndicator(), Phrase()),
+        # Substring() => (Phrase(), HeadIndicator()),
+        # TailIndicator() => (Phrase(),),
+        # Substring() => (TailIndicator(), Phrase()),
+        # Substring() => (Phrase(), TailIndicator()),
 
         InsertABIndicator() => (Phrase(),),
         InsertBAIndicator() => (Phrase(),),
-        InsertArg() => (Synonym(),),
-        InsertArg() => (JoinedPhrase(),),
-        Insertion() => (InsertABIndicator(), InsertArg(), InsertArg()),
-        Insertion() => (InsertArg(), InsertABIndicator(), InsertArg()),
-        Insertion() => (InsertArg(), InsertArg(), InsertABIndicator()),
-        Insertion() => (InsertBAIndicator(), InsertArg(), InsertArg()),
-        Insertion() => (InsertArg(), InsertBAIndicator(), InsertArg()),
-        Insertion() => (InsertArg(), InsertArg(), InsertBAIndicator()),
+        InnerInsertion() => (Synonym(),),
+        InnerInsertion() => (JoinedPhrase(),),
+        InnerInsertion() => (Substring(),),
+        OuterInsertion() => (Synonym(),),
+        OuterInsertion() => (JoinedPhrase(),),
+        Insertion() => (InsertABIndicator(), InnerInsertion(), OuterInsertion()),
+        Insertion() => (InnerInsertion(), InsertABIndicator(), OuterInsertion()),
+        Insertion() => (InnerInsertion(), OuterInsertion(), InsertABIndicator()),
+        Insertion() => (InsertBAIndicator(), OuterInsertion(), InnerInsertion()),
+        Insertion() => (OuterInsertion(), InsertBAIndicator(), InnerInsertion()),
+        Insertion() => (OuterInsertion(), InnerInsertion(), InsertBAIndicator()),
 
         StraddleIndicator() => (Phrase(),),
         Straddle() => (StraddleIndicator(), Phrase()),
@@ -124,7 +134,13 @@ apply!(out, ::GrammaticalSymbol, ::Tuple{GrammaticalSymbol}, (word,)) = push!(ou
 
 apply!(out, ::JoinedPhrase, ::Tuple{Phrase}, (p,)) = push!(out, replace(p, ' ' => ""))
 
-apply!(out, ::Phrase, ::Tuple{Phrase, Token}, (a, b)) = push!(out, string(a, " ", b))
+const MAX_PHRASE_LENGTH = 4
+
+function apply!(out, ::Phrase, ::Tuple{Phrase, Token}, (phrase, token))
+    if count(isequal(' '), phrase) < MAX_PHRASE_LENGTH - 1
+        push!(out, string(phrase, " ", token))
+    end
+end
 
 function apply!(out, ::Anagram, ::Tuple{AnagramIndicator, JoinedPhrase}, (indicator, phrase))
     key = join(sort(collect(phrase)))
@@ -167,8 +183,16 @@ apply!(out, ::Clue, ::Tuple{Definition, Filler, Wordplay}, (d, f, w)) = push!(ou
 apply!(out, ::Reversal, ::Tuple{ReverseIndicator, JoinedPhrase}, (indicator, word)) = push!(out, reverse(word))
 @apply_by_reversing Reversal JoinedPhrase ReverseIndicator
 
-apply!(out, ::Substring, ::Tuple{HeadIndicator, Phrase}, (indicator, phrase)) = push!(out, join(first(word) for word in split(phrase)))
-@apply_by_reversing Substring Phrase HeadIndicator
+apply!(out, ::Initials, ::Tuple{Token}, (word,)) = push!(out, string(first(word)))
+function apply!(out, ::Initials, ::Tuple{Initials, Token}, (initials, token))
+    next_letter = string(first(token))
+    if has_concatenation(SUBSTRINGS, initials, next_letter)
+        push!(out, string(initials, next_letter))
+    end
+end
+
+apply!(out, ::Substring, ::Tuple{InitialsIndicator, Initials}, (indicator, initials)) = push!(out, initials)
+@apply_by_reversing Substring Initials InitialsIndicator
 
 apply!(out, ::Substring, ::Tuple{TailIndicator, Phrase}, (indicator, phrase)) = push!(out, join(last(word) for word in split(phrase)))
 @apply_by_reversing Substring Phrase TailIndicator
@@ -197,9 +221,12 @@ end
 All insertions of a into b
 """
 function insertions!(results, a, b)
-    buffer = Vector{Char}()
     len_a = length(a)
     len_b = length(b)
+    if len_a == 0 || len_b == 0
+        return
+    end
+    buffer = Vector{Char}()
     sizehint!(buffer, len_a + len_b)
     for c in a
         push!(buffer, c)
@@ -215,17 +242,17 @@ function insertions!(results, a, b)
     end
 end
 
-apply!(out, ::Insertion, ::Tuple{InsertABIndicator, InsertArg, InsertArg}, (indicator, a, b)) = insertions!(out, a, b)
+apply!(out, ::Insertion, ::Tuple{InsertABIndicator, Any, Any}, (indicator, a, b)) = insertions!(out, a, b)
 
-apply!(out, ::Insertion, ::Tuple{InsertArg, InsertABIndicator, InsertArg}, (a, indicator, b)) = insertions!(out, a, b)
+apply!(out, ::Insertion, ::Tuple{Any, InsertABIndicator, Any}, (a, indicator, b)) = insertions!(out, a, b)
 
-apply!(out, ::Insertion, ::Tuple{InsertArg, InsertArg, InsertABIndicator}, (a, b, indicator)) = insertions!(out, a, b)
+apply!(out, ::Insertion, ::Tuple{Any, Any, InsertABIndicator}, (a, b, indicator)) = insertions!(out, a, b)
 
-apply!(out, ::Insertion, ::Tuple{InsertBAIndicator, InsertArg, InsertArg}, (indicator, b, a)) = insertions!(out, a, b)
+apply!(out, ::Insertion, ::Tuple{InsertBAIndicator, Any, Any}, (indicator, b, a)) = insertions!(out, a, b)
 
-apply!(out, ::Insertion, ::Tuple{InsertArg, InsertBAIndicator, InsertArg}, (b, indicator, a)) = insertions!(out, a, b)
+apply!(out, ::Insertion, ::Tuple{Any, InsertBAIndicator, Any}, (b, indicator, a)) = insertions!(out, a, b)
 
-apply!(out, ::Insertion, ::Tuple{InsertArg, InsertArg, InsertBAIndicator}, (b, a, indicator)) = insertions!(out, a, b)
+apply!(out, ::Insertion, ::Tuple{Any, Any, InsertBAIndicator}, (b, a, indicator)) = insertions!(out, a, b)
 
 function straddling_words!(results, phrase, condition=is_word)
     combined = replace(phrase, ' ' => "")

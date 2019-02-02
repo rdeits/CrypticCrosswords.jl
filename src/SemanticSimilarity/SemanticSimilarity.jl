@@ -2,7 +2,7 @@ module SemanticSimilarity
 
 using ..CrypticCrosswords: normalize
 
-using SnowballStemmer: Stemmer, stem
+# using SnowballStemmer: Stemmer, stem
 using WordNet
 using ProgressMeter: @showprogress
 using Statistics: mean

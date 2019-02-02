@@ -115,6 +115,7 @@ function solve(clue::AbstractString, context::Context, pattern::Regex=r"")
     rules = cryptics_rules()
     grammar = Grammar(rules)
     tokens = normalize.(split(clue))
+    filter!(!isempty, tokens)
     chart = chart_parse(tokens, grammar, TopDown());
     results = solutions(chart, context, pattern)
     results

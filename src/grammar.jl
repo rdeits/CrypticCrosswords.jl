@@ -249,11 +249,36 @@ function insertions!(results, a, b)
     for c in b
         push!(buffer, c)
     end
+    prefix_hash = zero(UInt)
     for i in 1:(len_b - 1)
         move_right!(buffer, i, len_a + i - 1)
-        if buffer in SUBSTRINGS
-            push!(results, join(buffer))
+        prefix_hash = hash(buffer[i], prefix_hash)
+        valid_substring = true
+        partial_hash = prefix_hash
+        for j in (i + 1):(i + 1 + len_a)
+            partial_hash = hash(buffer[j], partial_hash)
+            if !SUBSTRINGS.slots[(partial_hash & SUBSTRINGS.mask) + 1]
+                valid_substring = false
+                break
+            end
         end
+        if !valid_substring
+            break
+        end
+        for j in (i + 1 + len_a + 1):(len_a + len_b)
+            partial_hash = hash(buffer[j], partial_hash)
+            if !SUBSTRINGS.slots[(partial_hash & SUBSTRINGS.mask) + 1]
+                valid_substring = false
+                break
+            end
+        end
+        if !valid_substring
+            break
+        end
+        push!(results, join(buffer))
+        # if buffer in SUBSTRINGS
+        #     push!(results, join(buffer))
+        # end
     end
 end
 

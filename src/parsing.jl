@@ -14,7 +14,6 @@ struct PassiveArc <: AbstractArc
     rule_id::RuleID
     constituents::Vector{PassiveArc}
     outputs::Vector{String}
-    derivations::Vector{NTuple{N, String}} where N
 end
 outputs(a::PassiveArc) = a.outputs
 
@@ -35,9 +34,9 @@ num_arguments(arc::AbstractArc) = length(rhs(rule_id(arc)))
 num_completions(arc::AbstractArc) = length(constituents(arc))
 is_complete(arc::AbstractArc) = num_completions(arc) == num_arguments(arc)
 
-PassiveArc(arc::ActiveArc, outputs, derivations) =
+PassiveArc(arc::ActiveArc, outputs) =
     PassiveArc(arc.start, arc.stop, arc.rule, arc.rule_id, arc.constituents,
-               outputs, derivations)
+               outputs)
 
 function next_needed(arc::ActiveArc)
     @assert !is_complete(arc)
@@ -47,31 +46,25 @@ end
 const Constituents = Vector{PassiveArc}
 const Agenda = Vector{ActiveArc}
 
-@generated function _output_product(inputs, ::Val{N}) where {N}
-    Expr(:call, :product, [:(outputs(inputs[$i])) for i in 1:N]...)
-end
-
-function _apply(head::GrammaticalSymbol, args::Tuple{Vararg{GrammaticalSymbol, N}}, inputs) where {N}
-    outputs = Vector{String}()
-    for input in _output_product(inputs, Val{N}())
-        len_before = length(outputs)
-        apply!(outputs, head, args, input)
-    end
-    derivations = Vector{NTuple{N, String}}()
-    unique!(outputs)
-    outputs, derivations
-end
-
 function apply(rule::Rule,
                 constituents::Constituents)
     _apply(lhs(rule), rhs(rule), constituents)
 end
 
+function _apply(head::GrammaticalSymbol, args::Tuple{Vararg{GrammaticalSymbol, N}}, inputs::Constituents) where {N}
+    apply(head, args, ntuple(i -> outputs(inputs[i]), Val(N)))
+end
+
+@generated function _product(inputs, ::Val{N}) where {N}
+    Expr(:call, :product, [:(inputs[$i]) for i in 1:N]...)
+end
+
+
 function solve(arc::ActiveArc)
     # @show arc
     @assert is_complete(arc)
-    outputs, derivations = apply(rule(arc), constituents(arc))
-    PassiveArc(arc, outputs, derivations)
+    outputs = apply(rule(arc), constituents(arc))
+    PassiveArc(arc, outputs)
 end
 
 function Base.hash(arc::ActiveArc, h::UInt)
@@ -103,7 +96,6 @@ function Base.hash(arc::PassiveArc, h::UInt)
         h = hash(objectid(c), h)
     end
     h = hash(arc.outputs, h)
-    h = hash(arc.derivations, h)
     h
 end
 
@@ -116,7 +108,6 @@ function Base.:(==)(a1::PassiveArc, a2::PassiveArc)
         a1.constituents[i] === a2.constituents[i] || return false
     end
     a1.outputs == a2.outputs || return false
-    a1.derivations == a2.derivations || return false
 end
 
 function combine(a1::ActiveArc, a2::PassiveArc)
@@ -214,9 +205,7 @@ function initial_chart(tokens, grammar, ::TopDown)
     rule = Token() => ()
     id = rule_id(rule)
     for (i, token) in enumerate(tokens)
-        push!(chart, PassiveArc(ActiveArc(i - 1, i, rule, id, Constituents()),
-                                [String(token)],
-                                Vector{Tuple{}}()))
+        push!(chart, PassiveArc(i - 1, i, rule, id, Constituents(), [String(token)]))
     end
     chart
 end

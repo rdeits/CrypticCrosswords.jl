@@ -14,7 +14,9 @@ using CrypticCrosswords: definition, wordplay
         ("cuts up curtains differently for those who use needles", 14, "those who use needles", "acupuncturists"),
         ("Desire bawdy slut", 4, "desire", "lust"),
         ("Dotty, Sue, Pearl, Joy", 8, "joy", "pleasure"),
+        ("Endlessly long months and months", 4, "months and months", "year"),
         ("excitedly print Camus document", 10, "document", "manuscript"),
+        ("Father returning ring with charm", 6, "charm", "appeal"),
         ("form of licit sea salt", 8, "salt", "silicate"),
         ("improve meal or I eat nuts", 10, "improve", "ameliorate"),
         ("in glee over unusual color", 10, "color", "olive green"),
@@ -24,14 +26,20 @@ using CrypticCrosswords: definition, wordplay
         ("it's lunacy for dam to back onto ness", 7, "its lunacy", "madness"),
         ("hungary's leader, stuffy and bald", 8, "bald", "hairless"),
         ("male done mixing drink", 8, "drink", "lemonade"),
+        ("measuring exotic flowers", 9, "flowers", "geraniums"),
         ("model unusually creepy hat", 9, "model", "archetype"),
         ("mollify with fried sausage", 7, "mollify", "assuage"),
         ("M's Rob Titon pitching slider?", 10, "slider", "trombonist"),
         ("Orchestra: I'm reorganizing conductor", 11, "conductor", "choirmaster"),
+        ("Partially misconstrue fulminations; sorry", 6, "sorry", "rueful"),
+        ("Propane explodes, theoretically", 7, "theoretically", "on paper"),
+        ("Reap pleasure holding fruit", 5, "fruit", "apple"),
+        ("Recover via fantastic miracle", 7, "recover", "reclaim"),
         ("returning regal drink", 5, "drink", "lager"),
         ("she literally describes high society", 5, "society", "elite"), # should be "high society"
         ("Significant ataxia overshadows choral piece", 7, "piece", "cantata"), # definition should actually be "choral piece"
         ("signore redefined districts", 7, "districts", "regions"),
+        ("Sing gist of laudatory ode loudly", 5, "sing", "yodel"),
         ("singers in special tosca production", 5, "singers", "altos"),
         ("sink graduate with sin", 5, "sink", "basin"),
         ("spin broken shingle", 7, "spin", "english"),
@@ -45,9 +53,11 @@ using CrypticCrosswords: definition, wordplay
     badly_ranked_clues = [
         ("anagram marvellously conceals structure of language", 7, "language", "grammar"),
         ("clean oneself, but in reverse", 3, "clean oneself", "tub"),
+        ("Damaged credential tied together", 10, "tied together", "interlaced"),
         ("during exam I diagrammed viscera", 4, "during", "amid"),
         ("fish or insect for captain", 7, "fish or insect", "skipper"),
         ("figure out price he'd restructured", 8, "figure out", "decipher"),
+        ("Inherently helps students over here", 4, "over here", "psst"),
         ("made mistake in deer reduction", 5, "made mistake", "erred"),
         ("join trio of astronomers in marsh", 6, "join", "fasten"),
         ("sat up, interrupting sibling's balance", 6, "balance", "stasis"),
@@ -59,7 +69,7 @@ using CrypticCrosswords: definition, wordplay
 
     @time for (clue, length, expected_definition, expected_wordplay) in known_clues
         @show clue
-        solutions = @time solve(clue, Context(length, length, IsWord))
+        solutions = @time solve(clue, length)
         (arc, output, score) = first(solutions)
         @test definition(arc) == expected_definition
         @test output == expected_wordplay
@@ -67,7 +77,7 @@ using CrypticCrosswords: definition, wordplay
 
     @time for (clue, length, expected_definition, expected_wordplay) in badly_ranked_clues
         @show clue
-        solutions = @time solve(clue, Context(length, length, IsWord))
+        solutions = @time solve(clue, length)
         @test any(solutions) do solution
             (arc, output, score) = solution
             definition(arc) == expected_definition && output == expected_wordplay

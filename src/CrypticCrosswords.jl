@@ -21,7 +21,6 @@ using .Synonyms
 include("FixedCapacityVectors.jl")
 using .FixedCapacityVectors
 
-include("words.jl")
 include("grammar.jl")
 include("parsing.jl")
 include("solver.jl")
@@ -57,6 +56,27 @@ function Base.in(collection, p::PTrie)
     @inbounds p.slots[(h & p.mask) + 1]
 end
 
+function Base.getindex(p::PTrie, collection)
+    h = zero(UInt)
+    for element in collection
+        h = hash(element, h)
+        if !p.slots[(h & p.mask) + 1]
+            return nothing
+        end
+    end
+    return h
+end
+
+function has_concatenation(p::PTrie, h::UInt, suffix)
+    @inbounds for element in suffix
+        h = hash(element, h)
+        if !p.slots[(h & p.mask) + 1]
+            return false
+        end
+    end
+    @inbounds p.slots[(h & p.mask) + 1]
+end
+
 function has_concatenation(p::PTrie, collections::Vararg{String, N}) where {N}
     h = zero(UInt)
     for collection in collections
@@ -73,11 +93,11 @@ end
 
 const WORDS = Set{String}()
 const WORDS_BY_ANAGRAM = Dict{String, Vector{String}}()
-const WORDS_BY_CONSTRAINT = DefaultDict{Constraint, Set{String}}()
 const ABBREVIATIONS = Dict{String, Vector{String}}()
 const SUBSTRINGS = PTrie{32}()
-const SUBSTRINGS_SET = Set{String}()
+const PREFIXES = PTrie{32}()
 
+is_word(x::AbstractString) = x in WORDS
 
 function __init__()
     for word in keys(SYNONYMS[])
@@ -91,13 +111,6 @@ function __init__()
         v = get!(Vector{String}, WORDS_BY_ANAGRAM, key)
         push!(v, word)
     end
-    for word in WORDS
-        push!(WORDS_BY_CONSTRAINT[IsWord], word)
-        for i in 1:length(word)
-            push!(WORDS_BY_CONSTRAINT[IsPrefix], word[1:i])
-            push!(WORDS_BY_CONSTRAINT[IsSuffix], word[(end - i + 1):end])
-        end
-    end
     open(joinpath(@__DIR__, "..", "corpora", "mhl-abbreviations", "abbreviations.json")) do file
         for (word, abbrevs) in JSON.parse(file)
             ABBREVIATIONS[normalize(word)] = normalize.(abbrevs)
@@ -110,18 +123,10 @@ function __init__()
     end
 
     @showprogress "Substrings PTrie" for word in WORDS
+        push!(PREFIXES, word)
         word = replace(word, ' ' => "")
         for i in 1:length(word)
             push!(SUBSTRINGS, word[i:end])
-        end
-    end
-
-    @showprogress "Substrings set" for word in WORDS
-        word = replace(word, ' ' => "")
-        for i in 1:length(word)
-            for j in 1:length(word)
-                push!(SUBSTRINGS_SET, word[i:j])
-            end
         end
     end
 end

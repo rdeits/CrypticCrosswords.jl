@@ -94,11 +94,13 @@ function wordplay(arc::PassiveArc)
     first(output(x) for x in constituents(arc) if lhs(rule(x)) === Wordplay())
 end
 
-function solutions(chart::Chart, context::Context, pattern::Regex)
+num_letters(word::AbstractString) = count(!isequal(' '), word)
+
+function solutions(chart::Chart, len::Integer, pattern::Regex)
     results = Tuple{PassiveArc, String, Float64}[]
     for p in complete_parses(chart)
         for output in p.outputs
-            if is_match(context, output) && occursin(pattern, output)
+            if is_word(output) && num_letters(output) == len && occursin(pattern, output)
                 push!(results, (p, output, solution_quality(p, output)))
             end
         end
@@ -109,14 +111,12 @@ function solutions(chart::Chart, context::Context, pattern::Regex)
     results
 end
 
-solve(clue::AbstractString, length::Integer, pattern::Regex=r"") = solve(clue, Context(length, length, IsWord), pattern)
-
-function solve(clue::AbstractString, context::Context, pattern::Regex=r"")
+function solve(clue::AbstractString, len::Integer, pattern::Regex=r"")
     rules = cryptics_rules()
     grammar = Grammar(rules)
     tokens = normalize.(split(clue))
     filter!(!isempty, tokens)
     chart = chart_parse(tokens, grammar, TopDown());
-    results = solutions(chart, context, pattern)
+    results = solutions(chart, len, pattern)
     results
 end

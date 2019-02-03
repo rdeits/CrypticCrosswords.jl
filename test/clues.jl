@@ -59,7 +59,7 @@ using CrypticCrosswords: definition, wordplay
 
     @time for (clue, length, expected_definition, expected_wordplay) in known_clues
         @show clue
-        solutions = @time solve(clue, Context(length, length, IsWord))
+        solutions = @time solve(clue, length)
         (arc, output, score) = first(solutions)
         @test definition(arc) == expected_definition
         @test output == expected_wordplay
@@ -67,7 +67,7 @@ using CrypticCrosswords: definition, wordplay
 
     @time for (clue, length, expected_definition, expected_wordplay) in badly_ranked_clues
         @show clue
-        solutions = @time solve(clue, Context(length, length, IsWord))
+        solutions = @time solve(clue, length)
         @test any(solutions) do solution
             (arc, output, score) = solution
             definition(arc) == expected_definition && output == expected_wordplay

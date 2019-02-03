@@ -159,7 +159,7 @@ function apply!(out, ::Wordplay, ::Tuple{Wordplay, Filler, Wordplay}, (a, filler
 end
 
 function apply!(out, ::Wordplay, ::Tuple{Wordplay, Wordplay}, (a, b))
-    if has_concatenation(SUBSTRINGS, a, b)
+    if has_concatenation(PREFIXES, a, b)
         push!(out, string(a, b))
     end
 end

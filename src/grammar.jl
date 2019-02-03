@@ -37,6 +37,15 @@ const Rule = Pair{<:GrammaticalSymbol, <:Tuple{Vararg{GrammaticalSymbol}}}
 lhs(r::Pair) = first(r)
 rhs(r::Pair) = last(r)
 
+function apply(head::GrammaticalSymbol, args::Tuple{Vararg{GrammaticalSymbol, N}}, inputs) where {N}
+    outputs = Vector{String}()
+    for input in _product(inputs, Val{N}())
+        apply!(outputs, head, args, input)
+    end
+    unique!(outputs)
+    outputs
+end
+
 macro apply_by_reversing(Head, Args...)
     quote
         $(esc(:apply!))(out, H::$(esc(Head)), A::Tuple{$(esc.(Args)...)}, words) = $(esc(:apply!))(out, H, reverse(A), reverse(words))
@@ -56,20 +65,15 @@ function cryptics_rules()
 
         ReverseIndicator() => (Phrase(),),
         Reversal() => (ReverseIndicator(), JoinedPhrase()),
+        Reversal() => (ReverseIndicator(), Synonym()),
         Reversal() => (JoinedPhrase(), ReverseIndicator()),
+        Reversal() => (Synonym(), ReverseIndicator()),
 
         InitialsIndicator() => (Phrase(),),
         Initials() => (Token(),),
         Initials() => (Initials(), Token()),
         Substring() => (InitialsIndicator(), Initials()),
         Substring() => (Initials(), InitialsIndicator()),
-
-        # HeadIndicator() => (Phrase(),),
-        # Substring() => (HeadIndicator(), Phrase()),
-        # Substring() => (Phrase(), HeadIndicator()),
-        # TailIndicator() => (Phrase(),),
-        # Substring() => (TailIndicator(), Phrase()),
-        # Substring() => (Phrase(), TailIndicator()),
 
         InsertABIndicator() => (Phrase(),),
         InsertBAIndicator() => (Phrase(),),
@@ -154,15 +158,26 @@ function apply!(out, ::Anagram, ::Tuple{AnagramIndicator, JoinedPhrase}, (indica
 end
 @apply_by_reversing Anagram JoinedPhrase AnagramIndicator
 
-function apply!(out, ::Wordplay, ::Tuple{Wordplay, Filler, Wordplay}, (a, filler, b))
-    apply!(out, Wordplay(), (Wordplay(), Wordplay()), (a, b))
+function apply(head::Wordplay, args::Tuple{Wordplay, Filler, Wordplay}, (w1, filler, w2))
+    apply(head, (Wordplay(), Wordplay()), (w1, w2))
 end
 
-function apply!(out, ::Wordplay, ::Tuple{Wordplay, Wordplay}, (a, b))
-    if has_concatenation(PREFIXES, a, b)
-        push!(out, string(a, b))
+function apply(head::Wordplay, args::Tuple{Wordplay, Wordplay}, (words1, words2))
+    outputs = Vector{String}()
+    for w1 in words1
+        h = PREFIXES[w1]
+        if h !== nothing
+            for w2 in words2
+                if has_concatenation(PREFIXES, h, w2)
+                    push!(outputs, string(w1, w2))
+                end
+            end
+        end
     end
+    unique!(outputs)
+    outputs
 end
+
 
 apply!(out, ::Clue, ::Tuple{Wordplay, Definition}, (wordplay, definition)) = push!(out, wordplay)
 @apply_by_reversing Clue Definition Wordplay
@@ -180,8 +195,8 @@ apply!(out, ::Filler, ::Tuple{Token}, (word,)) = push!(out, "")
 apply!(out, ::Clue, ::Tuple{Wordplay, Filler, Definition}, (w, f, d)) = push!(out, w)
 apply!(out, ::Clue, ::Tuple{Definition, Filler, Wordplay}, (d, f, w)) = push!(out, w)
 
-apply!(out, ::Reversal, ::Tuple{ReverseIndicator, JoinedPhrase}, (indicator, word)) = push!(out, reverse(word))
-@apply_by_reversing Reversal JoinedPhrase ReverseIndicator
+apply!(out, ::Reversal, ::Tuple{ReverseIndicator, Any}, (indicator, word)) = push!(out, reverse(word))
+@apply_by_reversing Reversal Any ReverseIndicator
 
 apply!(out, ::Initials, ::Tuple{Token}, (word,)) = push!(out, string(first(word)))
 function apply!(out, ::Initials, ::Tuple{Initials, Token}, (initials, token))

@@ -1,75 +1,75 @@
-struct CompletedArc
-    head::GrammaticalSymbol
-    constituents::NTuple{N, CompletedArc} where N
-    output::String
-end
+# struct CompletedArc
+#     head::GrammaticalSymbol
+#     constituents::NTuple{N, CompletedArc} where N
+#     output::String
+# end
 
-function Base.show(io::IO, arc::CompletedArc)
-    expand(io, arc, 0)
-end
+# function Base.show(io::IO, arc::CompletedArc)
+#     expand(io, arc, 0)
+# end
 
-function expand(io::IO, arc::CompletedArc, indentation=0)
-    print(io, "(", name(arc.head))
-    arguments = arc.constituents
-    for i in eachindex(arguments)
-        if length(arguments) > 1
-            print(io, "\n", repeat(" ", indentation + 2))
-        else
-            print(io, " ")
-        end
-        constituent = arguments[i]
-        expand(io, constituent, indentation + 2)
-    end
-    print(io, " -> ", arc.output)
-    print(io, ")")
-end
+# function expand(io::IO, arc::CompletedArc, indentation=0)
+#     print(io, "(", name(arc.head))
+#     arguments = arc.constituents
+#     for i in eachindex(arguments)
+#         if length(arguments) > 1
+#             print(io, "\n", repeat(" ", indentation + 2))
+#         else
+#             print(io, " ")
+#         end
+#         constituent = arguments[i]
+#         expand(io, constituent, indentation + 2)
+#     end
+#     print(io, " -> ", arc.output)
+#     print(io, ")")
+# end
 
-@generated function (_completed_arcs(head::GrammaticalSymbol, constituents::Vector{PassiveArc},
-                         outputs::Vector{String},
-                         derivations::Vector{NTuple{N, String}},
-                         target::Union{AbstractString, Nothing}=nothing)::Vector{CompletedArc}) where {N}
-    quote
-        if typeof(head) === Token
-            return [CompletedArc(head, (), outputs[])]
-        end
-        results = CompletedArc[]
-        for (output, inputs) in zip(outputs, derivations)
-            # @show output inputs
-            if target !== nothing && output != target
-                continue
-            end
-            # @show $(Expr(:tuple, [:(completed_arcs(constituents[$i], inputs[$i])) for i in 1:N]...))
-            for completed_constituents in $(Expr(:call, :product, [:(completed_arcs(constituents[$i], inputs[$i])) for i in 1:N]...))
-                # @show completed_constituents
-                push!(results, CompletedArc(head, completed_constituents, output))
-            end
-        end
-        results
-    end
-end
+# @generated function (_completed_arcs(head::GrammaticalSymbol, constituents::Vector{PassiveArc},
+#                          outputs::Vector{String},
+#                          derivations::Vector{NTuple{N, String}},
+#                          target::Union{AbstractString, Nothing}=nothing)::Vector{CompletedArc}) where {N}
+#     quote
+#         if typeof(head) === Token
+#             return [CompletedArc(head, (), outputs[])]
+#         end
+#         results = CompletedArc[]
+#         for (output, inputs) in zip(outputs, derivations)
+#             # @show output inputs
+#             if target !== nothing && output != target
+#                 continue
+#             end
+#             # @show $(Expr(:tuple, [:(completed_arcs(constituents[$i], inputs[$i])) for i in 1:N]...))
+#             for completed_constituents in $(Expr(:call, :product, [:(completed_arcs(constituents[$i], inputs[$i])) for i in 1:N]...))
+#                 # @show completed_constituents
+#                 push!(results, CompletedArc(head, completed_constituents, output))
+#             end
+#         end
+#         results
+#     end
+# end
 
-function completed_arcs(arc::PassiveArc, target::Union{AbstractString, Nothing}=nothing)::Vector{CompletedArc}
-    # results = CompletedArc[]
-    # for (output, inputs) in zip(arc.outputs, arc.derivations)
-    #     if target !== nothing && output != target
-    #         continue
-    #     end
-    #     for constituents in product(completed_arcs.(arc.constituents, inputs)...)
-    #         push!(results, CompletedArc(lhs(rule(arc)), collect(constituents), output))
-    #     end
-    # end
-    # results
-    _completed_arcs(lhs(rule(arc)), constituents(arc), outputs(arc), arc.derivations, target)
-end
+# function completed_arcs(arc::PassiveArc, target::Union{AbstractString, Nothing}=nothing)::Vector{CompletedArc}
+#     # results = CompletedArc[]
+#     # for (output, inputs) in zip(arc.outputs, arc.derivations)
+#     #     if target !== nothing && output != target
+#     #         continue
+#     #     end
+#     #     for constituents in product(completed_arcs.(arc.constituents, inputs)...)
+#     #         push!(results, CompletedArc(lhs(rule(arc)), collect(constituents), output))
+#     #     end
+#     # end
+#     # results
+#     _completed_arcs(lhs(rule(arc)), constituents(arc), outputs(arc), arc.derivations, target)
+# end
 
-function completed_arcs(chart::Chart)
-    parses = complete_parses(chart)
-    results = CompletedArc[]
-    for passive_arc in parses
-        append!(results, completed_arcs(passive_arc,))
-    end
-    results
-end
+# function completed_arcs(chart::Chart)
+#     parses = complete_parses(chart)
+#     results = CompletedArc[]
+#     for passive_arc in parses
+#         append!(results, completed_arcs(passive_arc,))
+#     end
+#     results
+# end
 
 function answer_similarity(word1::AbstractString, word2::AbstractString)
     if word2 in keys(SYNONYMS[]) && word1 in SYNONYMS[][word2]

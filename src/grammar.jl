@@ -257,7 +257,7 @@ function insertions!(results, a, b)
         partial_hash = prefix_hash
         for j in (i + 1):(i + 1 + len_a)
             partial_hash = hash(buffer[j], partial_hash)
-            if !SUBSTRINGS.slots[(partial_hash & SUBSTRINGS.mask) + 1]
+            if (partial_hash & SUBSTRINGS.mask) ∉ SUBSTRINGS.slots
                 valid_substring = false
                 break
             end
@@ -267,7 +267,7 @@ function insertions!(results, a, b)
         end
         for j in (i + 1 + len_a + 1):(len_a + len_b)
             partial_hash = hash(buffer[j], partial_hash)
-            if !SUBSTRINGS.slots[(partial_hash & SUBSTRINGS.mask) + 1]
+            if (partial_hash & SUBSTRINGS.mask) ∉ SUBSTRINGS.slots
                 valid_substring = false
                 break
             end

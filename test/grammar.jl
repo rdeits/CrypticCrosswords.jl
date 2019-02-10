@@ -3,14 +3,15 @@ const CC = CrypticCrosswords
 
 @testset "Insertions" begin
     out = String[]
-    CC.insertions!(out, "a", "b")
+    buffer = Vector{Char}()
+    CC.insertions!(out, buffer, "a", "b")
     @test isempty(out)
 
     empty!(out)
-    CC.insertions!(out, "a", "bc")
+    CC.insertions!(out, buffer, "a", "bc")
     @test out == ["bac"]
 
     empty!(out)
-    CC.insertions!(out, "", "bc")
+    CC.insertions!(out, buffer, "", "bc")
     @test isempty(out)
 end

@@ -27,12 +27,11 @@ include("solver.jl")
 
 struct PTrie{N}
     mask::UInt
-    slots::BitArray{1}
+    slots::BitSet
 end
 
 function PTrie{N}() where {N}
-    slots = BitArray(undef, 2^N)
-    slots .= false
+    slots = BitSet()
     mask = sum(1 << i for i in 0:(N - 1))
     PTrie{N}(mask, slots)
 end
@@ -41,7 +40,7 @@ function Base.push!(p::PTrie, collection)
     h = zero(UInt)
     @inbounds for element in collection
         h = hash(element, h)
-        p.slots[(h & p.mask) + 1] = true
+        push!(p.slots, h & p.mask)
     end
 end
 
@@ -49,18 +48,18 @@ function Base.in(collection, p::PTrie)
     h = zero(UInt)
     @inbounds for element in collection
         h = hash(element, h)
-        if !p.slots[(h & p.mask) + 1]
+        if (h & p.mask) ∉ p.slots
             return false
         end
     end
-    @inbounds p.slots[(h & p.mask) + 1]
+    (h & p.mask) in p.slots
 end
 
 function Base.getindex(p::PTrie, collection)
     h = zero(UInt)
     for element in collection
         h = hash(element, h)
-        if !p.slots[(h & p.mask) + 1]
+        if (h & p.mask) ∉ p.slots
             return nothing
         end
     end
@@ -70,11 +69,11 @@ end
 function has_concatenation(p::PTrie, h::UInt, suffix)
     @inbounds for element in suffix
         h = hash(element, h)
-        if !p.slots[(h & p.mask) + 1]
+        if (h & p.mask) ∉ p.slots
             return false
         end
     end
-    @inbounds p.slots[(h & p.mask) + 1]
+    (h & p.mask) in p.slots
 end
 
 function has_concatenation(p::PTrie, collections::Vararg{String, N}) where {N}
@@ -82,12 +81,13 @@ function has_concatenation(p::PTrie, collections::Vararg{String, N}) where {N}
     for collection in collections
         @inbounds for element in collection
             h = hash(element, h)
-            if !p.slots[(h & p.mask) + 1]
+            # if !p.slots[(h & p.mask) + 1]
+            if (h & p.mask) ∉ p.slots
                 return false
             end
         end
     end
-    @inbounds p.slots[(h & p.mask) + 1]
+    (h & p.mask) in p.slots
 end
 
 

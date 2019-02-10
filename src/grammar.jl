@@ -37,6 +37,10 @@ const Rule = Pair{<:GrammaticalSymbol, <:Tuple{Vararg{GrammaticalSymbol}}}
 lhs(r::Pair) = first(r)
 rhs(r::Pair) = last(r)
 
+@generated function _product(inputs, ::Val{N}) where {N}
+    Expr(:call, :product, [:(inputs[$i]) for i in 1:N]...)
+end
+
 function apply(head::GrammaticalSymbol, args::Tuple{Vararg{GrammaticalSymbol, N}}, inputs) where {N}
     outputs = Vector{String}()
     for input in _product(inputs, Val{N}())
@@ -133,8 +137,8 @@ end
 
 # Fallback method for one-argument rules which just pass their argument
 # through
-apply!(out, ::GrammaticalSymbol, ::Tuple{GrammaticalSymbol}, (word,)) = push!(out, word)
 
+apply!(out, ::GrammaticalSymbol, ::Tuple{GrammaticalSymbol}, (word,)) = push!(out, word)
 
 apply!(out, ::JoinedPhrase, ::Tuple{Phrase}, (p,)) = push!(out, replace(p, ' ' => ""))
 
@@ -178,9 +182,8 @@ function apply(head::Wordplay, args::Tuple{Wordplay, Wordplay}, (words1, words2)
     outputs
 end
 
-
-apply!(out, ::Clue, ::Tuple{Wordplay, Definition}, (wordplay, definition)) = push!(out, wordplay)
-@apply_by_reversing Clue Definition Wordplay
+apply(head::Clue, args::Tuple{Wordplay, Definition}, (w, d)) = w
+apply(head::Clue, args::Tuple{Definition, Wordplay}, (d, w)) = w
 
 function apply!(out, ::Abbreviation, ::Tuple{Phrase}, (word,))
     if word in keys(ABBREVIATIONS)
@@ -235,13 +238,13 @@ end
 """
 All insertions of a into b
 """
-function insertions!(results, a, b)
+function insertions!(results, buffer, a, b)
     len_a = length(a)
     len_b = length(b)
     if len_a == 0 || len_b == 0
         return
     end
-    buffer = Vector{Char}()
+    empty!(buffer)
     sizehint!(buffer, len_a + len_b)
     for c in a
         push!(buffer, c)
@@ -276,23 +279,33 @@ function insertions!(results, a, b)
             break
         end
         push!(results, join(buffer))
-        # if buffer in SUBSTRINGS
-        #     push!(results, join(buffer))
-        # end
     end
 end
 
-apply!(out, ::Insertion, ::Tuple{InsertABIndicator, Any, Any}, (indicator, a, b)) = insertions!(out, a, b)
+function insertions(inner, outer)
+    outputs = Vector{String}()
+    buffer = Vector{Char}()
+    for w1 in inner
+        for w2 in outer
+            insertions!(outputs, buffer, w1, w2)
+        end
+    end
+    unique!(outputs)
+    outputs
+end
 
-apply!(out, ::Insertion, ::Tuple{Any, InsertABIndicator, Any}, (a, indicator, b)) = insertions!(out, a, b)
 
-apply!(out, ::Insertion, ::Tuple{Any, Any, InsertABIndicator}, (a, b, indicator)) = insertions!(out, a, b)
+apply(::Insertion, ::Tuple{InsertABIndicator, GrammaticalSymbol, GrammaticalSymbol}, (indicator, a, b)) = insertions(a, b)
 
-apply!(out, ::Insertion, ::Tuple{InsertBAIndicator, Any, Any}, (indicator, b, a)) = insertions!(out, a, b)
+apply(::Insertion, ::Tuple{GrammaticalSymbol, InsertABIndicator, GrammaticalSymbol}, (a, indicator, b)) = insertions(a, b)
 
-apply!(out, ::Insertion, ::Tuple{Any, InsertBAIndicator, Any}, (b, indicator, a)) = insertions!(out, a, b)
+apply(::Insertion, ::Tuple{GrammaticalSymbol, GrammaticalSymbol, InsertABIndicator}, (a, b, indicator)) = insertions(a, b)
 
-apply!(out, ::Insertion, ::Tuple{Any, Any, InsertBAIndicator}, (b, a, indicator)) = insertions!(out, a, b)
+apply(::Insertion, ::Tuple{InsertBAIndicator, GrammaticalSymbol, GrammaticalSymbol}, (indicator, b, a)) = insertions(a, b)
+
+apply(::Insertion, ::Tuple{GrammaticalSymbol, InsertBAIndicator, GrammaticalSymbol}, (b, indicator, a)) = insertions(a, b)
+
+apply(::Insertion, ::Tuple{GrammaticalSymbol, GrammaticalSymbol, InsertBAIndicator}, (b, a, indicator)) = insertions(a, b)
 
 function straddling_words!(results, phrase, condition=is_word)
     combined = replace(phrase, ' ' => "")

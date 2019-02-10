@@ -55,10 +55,6 @@ function _apply(head::GrammaticalSymbol, args::Tuple{Vararg{GrammaticalSymbol, N
     apply(head, args, ntuple(i -> outputs(inputs[i]), Val(N)))
 end
 
-@generated function _product(inputs, ::Val{N}) where {N}
-    Expr(:call, :product, [:(inputs[$i]) for i in 1:N]...)
-end
-
 
 function solve(arc::ActiveArc)
     # @show arc

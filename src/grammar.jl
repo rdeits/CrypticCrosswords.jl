@@ -1,6 +1,7 @@
 abstract type GrammaticalSymbol end
 
 struct Token <: GrammaticalSymbol end
+
 struct Phrase <: GrammaticalSymbol end
 struct Clue <: GrammaticalSymbol end
 struct Definition <: GrammaticalSymbol end
@@ -24,7 +25,7 @@ struct Initials <: GrammaticalSymbol end
 
 abstract type AbstractIndicator <: GrammaticalSymbol end
 struct AnagramIndicator <: AbstractIndicator end
-struct ReverseIndicator <: AbstractIndicator end
+struct ReversalIndicator <: AbstractIndicator end
 struct InsertABIndicator <: AbstractIndicator end
 struct InsertBAIndicator <: AbstractIndicator end
 struct InitialsIndicator <: AbstractIndicator end
@@ -33,9 +34,23 @@ struct StraddleIndicator <: AbstractIndicator end
 struct InitialSubstringIndicator <: AbstractIndicator end
 struct FinalSubstringIndicator <: AbstractIndicator end
 
-const Rule = Pair{<:GrammaticalSymbol, <:Tuple{Vararg{GrammaticalSymbol}}}
-lhs(r::Pair) = first(r)
-rhs(r::Pair) = last(r)
+struct Rule
+    inner::Pair{GrammaticalSymbol, Tuple{Vararg{GrammaticalSymbol}}}
+    id::Pair{Symbol, Vector{Symbol}}
+end
+
+_name(x) = typeof(x).name.name
+Rule(p::Pair) = Rule(p, _name(lhs(p)) => collect(_name.(rhs(p))))
+Base.convert(::Type{Rule}, p::Pair) = Rule(p)
+
+id(r::Rule) = r.id
+inner(r::Rule) = r.inner
+ChartParsers.lhs(r::Rule) = lhs(id(r))
+ChartParsers.rhs(r::Rule) = rhs(id(r))
+ChartParsers.chart_key(::Type{Rule}) = Symbol
+
+# lhs(r::Pair) = first(r)
+# rhs(r::Pair) = last(r)
 
 @generated function _product(inputs, ::Val{N}) where {N}
     Expr(:call, :product, [:(inputs[$i]) for i in 1:N]...)
@@ -56,99 +71,145 @@ macro apply_by_reversing(Head, Args...)
     end
 end
 
-function cryptics_rules()
-    Rule[
-        Phrase() => (Token(),),
-        Phrase() => (Phrase(), Token()),
+struct CrypticsGrammar <: AbstractGrammar{Rule}
+    productions::Vector{Rule}
+end
 
-        JoinedPhrase() => (Phrase(),),
+ChartParsers.productions(g::CrypticsGrammar) = g.productions
+ChartParsers.start_symbol(g::CrypticsGrammar) = _name(Clue())
 
-        AnagramIndicator() => (Phrase(),),
+function ChartParsers.terminal_productions(g::CrypticsGrammar, tokens)
+    result = Arc{Rule}[]
+
+    parts_of_speech = [
+        Literal(),
+        Filler(),
+        Phrase(),
+        AnagramIndicator(),
+        ReversalIndicator(),
+        InitialsIndicator(),
+        # InsertABIndicator(),
+        # InsertBAIndicator(),
+        StraddleIndicator(),
+        # InitialSubstringIndicator(),
+        # FinalSubstringIndicator(),
+    ]
+
+    for start in 1:length(tokens)
+        for stop in start .+ (0:2)
+            if stop > length(tokens)
+                continue
+            end
+            phrase = join(tokens[start:stop], ' ')
+            known_parts_of_speech = get(INDICATORS, phrase, Vector{GrammaticalSymbol}())
+            n_known = length(known_parts_of_speech)
+            n_unknown = length(parts_of_speech) - n_known
+            if n_known > 0
+                p_known = 0.9
+                p_unknown = 1 - p_known
+            else
+                p_unknown = 1.0
+            end
+            for part_of_speech in parts_of_speech
+                if part_of_speech in known_parts_of_speech
+                    p = p_known / n_known
+                else
+                    p = p_unknown / n_unknown
+                end
+                push!(result, Arc{Rule}(start - 1, stop, part_of_speech => (Token(),), [phrase], p))
+            end
+        end
+    end
+    result
+end
+
+function CrypticsGrammar()
+    CrypticsGrammar(Rule[
+
+        JoinedPhrase() => (Literal(),),
+
         Anagram() => (AnagramIndicator(), JoinedPhrase()),
         Anagram() => (JoinedPhrase(), AnagramIndicator()),
 
-        ReverseIndicator() => (Phrase(),),
-        Reversal() => (ReverseIndicator(), JoinedPhrase()),
-        Reversal() => (ReverseIndicator(), Synonym()),
-        Reversal() => (JoinedPhrase(), ReverseIndicator()),
-        Reversal() => (Synonym(), ReverseIndicator()),
+        Reversal() => (ReversalIndicator(), JoinedPhrase()),
+        Reversal() => (ReversalIndicator(), Synonym()),
+        Reversal() => (JoinedPhrase(), ReversalIndicator()),
+        Reversal() => (Synonym(), ReversalIndicator()),
 
-        InitialsIndicator() => (Phrase(),),
-        Initials() => (Token(),),
-        Initials() => (Initials(), Token()),
-        Substring() => (InitialsIndicator(), Initials()),
-        Substring() => (Initials(), InitialsIndicator()),
+        # InitialsIndicator() => (Phrase(),),
+        # Initials() => (Literal(),),
+        # Initials() => (Initials(), Literal()),
+        # Substring() => (InitialsIndicator(), Initials()),
+        # Substring() => (Initials(), InitialsIndicator()),
 
-        InsertABIndicator() => (Phrase(),),
-        InsertBAIndicator() => (Phrase(),),
-        InnerInsertion() => (Synonym(),),
-        InnerInsertion() => (JoinedPhrase(),),
-        InnerInsertion() => (Substring(),),
-        OuterInsertion() => (Synonym(),),
-        OuterInsertion() => (JoinedPhrase(),),
-        Insertion() => (InsertABIndicator(), InnerInsertion(), OuterInsertion()),
-        Insertion() => (InnerInsertion(), InsertABIndicator(), OuterInsertion()),
-        Insertion() => (InnerInsertion(), OuterInsertion(), InsertABIndicator()),
-        Insertion() => (InsertBAIndicator(), OuterInsertion(), InnerInsertion()),
-        Insertion() => (OuterInsertion(), InsertBAIndicator(), InnerInsertion()),
-        Insertion() => (OuterInsertion(), InnerInsertion(), InsertBAIndicator()),
+        # InsertABIndicator() => (Phrase(),),
+        # InsertBAIndicator() => (Phrase(),),
+        # InnerInsertion() => (Synonym(),),
+        # InnerInsertion() => (JoinedPhrase(),),
+        # InnerInsertion() => (Substring(),),
+        # OuterInsertion() => (Synonym(),),
+        # OuterInsertion() => (JoinedPhrase(),),
+        # Insertion() => (InsertABIndicator(), InnerInsertion(), OuterInsertion()),
+        # Insertion() => (InnerInsertion(), InsertABIndicator(), OuterInsertion()),
+        # Insertion() => (InnerInsertion(), OuterInsertion(), InsertABIndicator()),
+        # Insertion() => (InsertBAIndicator(), OuterInsertion(), InnerInsertion()),
+        # Insertion() => (OuterInsertion(), InsertBAIndicator(), InnerInsertion()),
+        # Insertion() => (OuterInsertion(), InnerInsertion(), InsertBAIndicator()),
 
-        StraddleIndicator() => (Phrase(),),
-        Straddle() => (StraddleIndicator(), Phrase()),
-        Straddle() => (Phrase(), StraddleIndicator()),
+        # StraddleIndicator() => (Phrase(),),
+        # Straddle() => (StraddleIndicator(), Phrase()),
+        # Straddle() => (Phrase(), StraddleIndicator()),
 
-        Literal() => (Token(),),
-        Abbreviation() => (Phrase(),),
-        Filler() => (Token(),),
-        Synonym() => (Phrase(),),
+        # Literal() => (Token(),),
+        # Abbreviation() => (Phrase(),),
+        # Filler() => (Token(),),
+        # Synonym() => (Phrase(),),
 
-        InitialSubstringIndicator() => (Phrase(),),
-        Substring() => (InitialSubstringIndicator(), Token()),
-        Substring() => (Token(), InitialSubstringIndicator()),
-        Substring() => (InitialSubstringIndicator(), Synonym()),
-        Substring() => (Synonym(), InitialSubstringIndicator()),
+        # InitialSubstringIndicator() => (Phrase(),),
+        # Substring() => (InitialSubstringIndicator(), Literal()),
+        # Substring() => (Literal(), InitialSubstringIndicator()),
+        # Substring() => (InitialSubstringIndicator(), Synonym()),
+        # Substring() => (Synonym(), InitialSubstringIndicator()),
 
-        FinalSubstringIndicator() => (Phrase(),),
-        Substring() => (FinalSubstringIndicator(), Token()),
-        Substring() => (Token(), FinalSubstringIndicator()),
-        Substring() => (FinalSubstringIndicator(), Synonym()),
-        Substring() => (Synonym(), FinalSubstringIndicator()),
+        # FinalSubstringIndicator() => (Phrase(),),
+        # Substring() => (FinalSubstringIndicator(), Literal()),
+        # Substring() => (Literal(), FinalSubstringIndicator()),
+        # Substring() => (FinalSubstringIndicator(), Synonym()),
+        # Substring() => (Synonym(), FinalSubstringIndicator()),
 
         Definition() => (Phrase(),),
 
-        Wordplay() => (JoinedPhrase(),),
+        # Wordplay() => (Literal(),),
         Wordplay() => (Abbreviation(),),
         Wordplay() => (Reversal(),),
         Wordplay() => (Anagram(),),
-        Wordplay() => (Substring(),),
-        Wordplay() => (Insertion(),),
-        Wordplay() => (Straddle(),),
-        Wordplay() => (Literal(),),
+        # Wordplay() => (Substring(),),
+        # Wordplay() => (Insertion(),),
+        # Wordplay() => (Straddle(),),
         Wordplay() => (Synonym(),),
-        Wordplay() => (Wordplay(), Wordplay()),
-        Wordplay() => (Wordplay(), Filler(), Wordplay()),
+        # Wordplay() => (Wordplay(), Wordplay()),
+        # Wordplay() => (Wordplay(), Filler(), Wordplay()),
 
         Clue() => (Wordplay(), Definition()),
         Clue() => (Definition(), Wordplay()),
         Clue() => (Wordplay(), Filler(), Definition()),
         Clue() => (Definition(), Filler(), Wordplay()),
-    ]
+    ])
 end
 
 # Fallback method for one-argument rules which just pass their argument
 # through
-
 apply!(out, ::GrammaticalSymbol, ::Tuple{GrammaticalSymbol}, (word,)) = push!(out, word)
 
-apply!(out, ::JoinedPhrase, ::Tuple{Phrase}, (p,)) = push!(out, replace(p, ' ' => ""))
+apply!(out, ::JoinedPhrase, ::Tuple{Literal}, (p,)) = push!(out, replace(p, ' ' => ""))
 
-const MAX_PHRASE_LENGTH = 4
+# const MAX_PHRASE_LENGTH = 4
 
-function apply!(out, ::Phrase, ::Tuple{Phrase, Token}, (phrase, token))
-    if count(isequal(' '), phrase) < MAX_PHRASE_LENGTH - 1
-        push!(out, string(phrase, " ", token))
-    end
-end
+# function apply!(out, ::Phrase, ::Tuple{Phrase, Token}, (phrase, token))
+#     if count(isequal(' '), phrase) < MAX_PHRASE_LENGTH - 1
+#         push!(out, string(phrase, " ", token))
+#     end
+# end
 
 function apply!(out, ::Anagram, ::Tuple{AnagramIndicator, JoinedPhrase}, (indicator, phrase))
     key = join(sort(collect(phrase)))
@@ -198,8 +259,8 @@ apply!(out, ::Filler, ::Tuple{Token}, (word,)) = push!(out, "")
 apply!(out, ::Clue, ::Tuple{Wordplay, Filler, Definition}, (w, f, d)) = push!(out, w)
 apply!(out, ::Clue, ::Tuple{Definition, Filler, Wordplay}, (d, f, w)) = push!(out, w)
 
-apply!(out, ::Reversal, ::Tuple{ReverseIndicator, Any}, (indicator, word)) = push!(out, reverse(word))
-@apply_by_reversing Reversal Any ReverseIndicator
+apply!(out, ::Reversal, ::Tuple{ReversalIndicator, Any}, (indicator, word)) = push!(out, reverse(word))
+@apply_by_reversing Reversal Any ReversalIndicator
 
 apply!(out, ::Initials, ::Tuple{Token}, (word,)) = push!(out, string(first(word)))
 function apply!(out, ::Initials, ::Tuple{Initials, Token}, (initials, token))

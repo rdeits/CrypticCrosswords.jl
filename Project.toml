@@ -4,6 +4,7 @@ authors = ["Robin Deits <robin.deits@gmail.com>"]
 version = "0.0.0"
 
 [deps]
+ChartParsers = "de988000-0167-11e9-3115-2b7bbce15f76"
 Combinatorics = "861a8166-3701-5b0c-9a16-15d98fcdc6aa"
 DataDeps = "124859b0-ceae-595e-8997-d05f6a7a8dfe"
 DataStructures = "864edb3b-99cc-5e75-8d2d-829cb0a9cfe8"

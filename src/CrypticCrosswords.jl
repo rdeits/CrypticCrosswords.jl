@@ -1,5 +1,6 @@
 module CrypticCrosswords
 
+using ChartParsers
 using Base.Iterators: product, drop
 using Combinatorics: permutations
 using DataDeps: @datadep_str
@@ -96,6 +97,7 @@ const WORDS_BY_ANAGRAM = Dict{String, Vector{String}}()
 const ABBREVIATIONS = Dict{String, Vector{String}}()
 const SUBSTRINGS = PTrie{32}()
 const PREFIXES = PTrie{32}()
+const INDICATORS = Dict{String, Vector{GrammaticalSymbol}}()
 
 is_word(x::AbstractString) = x in WORDS
 
@@ -129,6 +131,22 @@ function __init__()
             push!(SUBSTRINGS, word[i:end])
         end
     end
+
+    for (filename, part_of_speech) in [
+        ("Anagram", AnagramIndicator()),
+        ("Filler", Filler()),
+        ("FinalSubstring", FinalSubstringIndicator()),
+        ("InitialSubstring", InitialSubstringIndicator()),
+        ("Insert", InsertABIndicator()),
+        ("Insert", InsertBAIndicator()),
+        ("Initials", InitialsIndicator()),
+        ("Reversal", ReversalIndicator())]
+        for line in eachline(joinpath(@__DIR__, "..", "corpora", "indicators", filename))
+            phrase = normalize(strip(line))
+            push!(get!(Vector{GrammaticalSymbol}, INDICATORS, phrase), part_of_speech)
+        end
+    end
+
 end
 
 end # module

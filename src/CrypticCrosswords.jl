@@ -23,7 +23,6 @@ include("FixedCapacityVectors.jl")
 using .FixedCapacityVectors
 
 include("grammar.jl")
-include("parsing.jl")
 include("solver.jl")
 
 struct PTrie{N}

@@ -1,8 +1,8 @@
 struct SolverState
-    arcs::Dict{Arc{Rule}, Vector{String}}
+    arcs::Dict{Arc{Rule}, Dict{String, Vector{Vector{String}}}}
 end
 
-SolverState() = SolverState(Dict{Arc{Rule}, Vector{String}}())
+SolverState() = SolverState(Dict())
 
 function _apply(rule::Rule,
                 constituents::AbstractVector)
@@ -11,31 +11,115 @@ function _apply(rule::Rule,
 end
 
 function _apply(head::GrammaticalSymbol, args::Tuple{Vararg{GrammaticalSymbol, N}}, inputs::AbstractVector) where {N}
-    apply(head, args, ntuple(i -> inputs[i], Val(N)))
+    apply(head, args, ntuple(i -> keys(inputs[i]), Val(N)))
 end
 
 function solve!(state::SolverState, arc::Arc{Rule})
     get!(state.arcs, arc) do
-        inputs = solve!.(Ref(state), constituents(arc))
+        inputs = [solve!(state, c) for c in constituents(arc)]
+        # inputs = solve!.(Ref(state), collect(constituents(arc)))
         _apply(rule(arc), inputs)
     end
 end
 
-solve!(state::SolverState, s::AbstractString) = [s]
+@generated function _product(inputs, ::Val{N}) where {N}
+    Expr(:call, :product, [:(inputs[$i]) for i in 1:N]...)
+end
 
-function solve(clue)
+function apply(head::GrammaticalSymbol, args::Tuple{Vararg{GrammaticalSymbol, N}}, inputs) where {N}
+    result = Dict{String, Vector{Vector{String}}}()
+    buffer = Vector{String}()
+    for input in _product(inputs, Val{N}())
+        empty!(buffer)
+        apply!(buffer, head, args, input)
+        for output in buffer
+            push!(get!(Vector{Vector{String}}, result, output), collect(input))
+        end
+    end
+    result
+end
+
+solve!(state::SolverState, s::AbstractString) = Dict{String, Vector{Vector{String}}}(s => [])
+
+struct SolvedArc
+    arc::Arc{Rule}
+    output::String
+    similarity::Float64
+end
+
+function solve(clue;
+        pattern::Regex=r"",
+        strategy=BottomUp(),
+        min_grammar_score=1e-6)
     state = SolverState()
     tokens = normalize.(split(clue))
     grammar = CrypticsGrammar()
-    parser = ChartParser(tokens, grammar)
-    solutions = Tuple{Arc{Rule}, String, Float64}[]
-    for arc in Iterators.filter(is_complete(parser), parser)
+
+    function is_solvable(arc)
         outputs = solve!(state, arc)
-        for output in outputs
-            push!(solutions, (arc, output, solution_quality(arc, output)))
+        if isempty(outputs)
+            return 0
+        else
+            return 1
         end
     end
+    parser = ChartParser(tokens, grammar, BottomUp(),
+                         is_solvable)
+    solutions = SolvedArc[]
+    for arc in Iterators.filter(is_complete(parser), parser)
+    # for arc in parser
+        if score(arc) < min_grammar_score
+            continue
+        end
+        # @show arc
+        # TODO: probably don't need to call solve!() here
+        outputs = solve!(state, arc)
+        @assert !isempty(outputs)
+        # if isempty(outputs)
+        #     println("dead arc:")
+        #     @show arc
+        # end
+        for (output, inputs) in outputs
+            if occursin(pattern, output)
+                push!(solutions, SolvedArc(arc, output,
+                                           solution_quality(arc, output)))
+            end
+        end
+    end
+    sort!(solutions, by=s -> s.similarity, rev=true)
     solutions, state
+end
+
+struct DerivedArc
+    arc::Arc{Rule}
+    output::String
+    constituents::Vector{Union{DerivedArc, String}}
+end
+
+function derive(arc::Arc{Rule}, target::AbstractString, state::SolverState)
+    result = DerivedArc[]
+    for inputs in solve!(state, arc)[target]
+        for children in product(derive.(constituents(arc), inputs, Ref(state))...)
+            push!(result, DerivedArc(arc, target, collect(children)))
+        end
+    end
+    result
+end
+
+derive(s::AbstractString, t::AbstractString, state::SolverState) = [t]
+
+derive(solved::SolvedArc, state::SolverState) = derive(solved.arc, solved.output, state)
+
+_show(io::IO, arc::DerivedArc) = print(io, arc)
+_show(io::IO, s::AbstractString) = print(io, '"', s, '"')
+
+function Base.show(io::IO, arc::DerivedArc)
+    print(io, "($(lhs(rule(arc.arc))) -> ")
+    for c in arc.constituents
+        _show(io, c)
+        print(io, " ")
+    end
+    print(io, "; $(score(arc.arc))) -> \"$(arc.output)\")")
 end
 
 # struct CompletedArc

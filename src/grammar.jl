@@ -34,36 +34,25 @@ struct StraddleIndicator <: AbstractIndicator end
 struct InitialSubstringIndicator <: AbstractIndicator end
 struct FinalSubstringIndicator <: AbstractIndicator end
 
-struct Rule
+struct Rule <: AbstractRule{Symbol}
     inner::Pair{GrammaticalSymbol, Tuple{Vararg{GrammaticalSymbol}}}
     id::Pair{Symbol, Vector{Symbol}}
+    score::Float64
 end
 
 _name(x) = typeof(x).name.name
-Rule(p::Pair) = Rule(p, _name(lhs(p)) => collect(_name.(rhs(p))))
-Base.convert(::Type{Rule}, p::Pair) = Rule(p)
+Rule(p::Pair, s::Real) = Rule(p, _name(lhs(p)) => collect(_name.(rhs(p))), s)
+Base.convert(::Type{Rule}, p::Tuple{Pair, Real}) = Rule(p...)
 
 id(r::Rule) = r.id
 inner(r::Rule) = r.inner
 ChartParsers.lhs(r::Rule) = lhs(id(r))
 ChartParsers.rhs(r::Rule) = rhs(id(r))
-ChartParsers.chart_key(::Type{Rule}) = Symbol
+ChartParsers.score(r::Rule) = r.score
 
 # lhs(r::Pair) = first(r)
 # rhs(r::Pair) = last(r)
 
-@generated function _product(inputs, ::Val{N}) where {N}
-    Expr(:call, :product, [:(inputs[$i]) for i in 1:N]...)
-end
-
-function apply(head::GrammaticalSymbol, args::Tuple{Vararg{GrammaticalSymbol, N}}, inputs) where {N}
-    outputs = Vector{String}()
-    for input in _product(inputs, Val{N}())
-        apply!(outputs, head, args, input)
-    end
-    unique!(outputs)
-    outputs
-end
 
 macro apply_by_reversing(Head, Args...)
     quote
@@ -78,69 +67,125 @@ end
 ChartParsers.productions(g::CrypticsGrammar) = g.productions
 ChartParsers.start_symbol(g::CrypticsGrammar) = _name(Clue())
 
-function ChartParsers.terminal_productions(g::CrypticsGrammar, tokens)
-    result = Arc{Rule}[]
+function weight(candidate, known_parts_of_speech)
+    if !isempty(known_parts_of_speech)
+        if candidate in known_parts_of_speech
+            return 100.0
+        elseif candidate == Literal() || candidate == Phrase()
+            return 0.1
+        else
+            return 0.01
+        end
+    else
+        if candidate == Literal() || candidate == Phrase()
+            return 0.1
+        else
+            return 0.01
+        end
+    end
+end
 
-    parts_of_speech = [
-        Literal(),
-        Filler(),
-        Phrase(),
-        AnagramIndicator(),
-        ReversalIndicator(),
-        InitialsIndicator(),
-        # InsertABIndicator(),
-        # InsertBAIndicator(),
-        StraddleIndicator(),
-        # InitialSubstringIndicator(),
-        # FinalSubstringIndicator(),
+function candidates(start, stop)
+    result = GrammaticalSymbol[
+        Literal()
     ]
+    if stop - start < 4
+        append!(result, [
+            Phrase(),
+            AnagramIndicator(),
+            InitialsIndicator(),
+            ReversalIndicator()
+        ])
+    end
+    if stop == start
+        append!(result, [
+            Filler()
+        ])
+    end
+    result
+end
 
+function ChartParsers.terminal_productions(g::CrypticsGrammar, tokens)
+    weights = Vector{Tuple{UnitRange{Int}, Float64}}()
     for start in 1:length(tokens)
-        for stop in start .+ (0:2)
-            if stop > length(tokens)
-                continue
-            end
+        for stop in start:length(tokens)
             phrase = join(tokens[start:stop], ' ')
             known_parts_of_speech = get(INDICATORS, phrase, Vector{GrammaticalSymbol}())
-            n_known = length(known_parts_of_speech)
-            n_unknown = length(parts_of_speech) - n_known
-            if n_known > 0
-                p_known = 0.9
-                p_unknown = 1 - p_known
-            else
-                p_unknown = 1.0
-            end
-            for part_of_speech in parts_of_speech
-                if part_of_speech in known_parts_of_speech
-                    p = p_known / n_known
-                else
-                    p = p_unknown / n_unknown
-                end
-                push!(result, Arc{Rule}(start - 1, stop, part_of_speech => (Token(),), [phrase], p))
+            for candidate in candidates(start, stop)
+                w = weight(candidate, known_parts_of_speech)
+                push!(weights, (start:stop, w))
             end
         end
     end
+
+    result = Arc{Rule}[]
+    for start in 1:length(tokens)
+        for stop in start:length(tokens)
+            phrase = join(tokens[start:stop], ' ')
+            known_parts_of_speech = get(INDICATORS, phrase, Vector{GrammaticalSymbol}())
+            for candidate in candidates(start, stop)
+                w = weight(candidate, known_parts_of_speech)
+                displacement = sum(weights) do (range, weight)
+                    if !isempty(intersect(range, start:stop))
+                        weight
+                    else
+                        0.0
+                    end
+                end
+                p = w / displacement
+                push!(result, Arc{Rule}(start - 1, stop, Rule(candidate => (Token(),), p), [phrase], p))
+            end
+        end
+    end
+
+
+    #             # s = 1 / length(candidates)
+    #             push!(result, Arc{Rule}(start - 1, stop,
+    #                 Rule(candidate => (Token(),), s),
+    #                 [phrase], s))
+    #         end
+    #     end
+    # end
+            # # known_parts_of_speech = phrase == "initially" ? [InitialsIndicator()] : []
+            # n_known = length(known_parts_of_speech)
+            # n_unknown = length(parts_of_speech) - n_known
+            # if n_known > 0
+            #     p_known = 0.9
+            #     p_unknown = 1 - p_known
+            # else
+            #     p_unknown = 1.0
+            # end
+            # for part_of_speech in parts_of_speech
+            #     if part_of_speech in known_parts_of_speech
+            #         p = p_known / n_known
+            #     else
+            #         p = p_unknown / n_unknown
+            #     end
+            #     push!(result, Arc{Rule}(start - 1, stop, part_of_speech => (Token(),), [phrase], p))
+            # end
+    #     end
+    # end
     result
 end
 
 function CrypticsGrammar()
     CrypticsGrammar(Rule[
 
-        JoinedPhrase() => (Literal(),),
+        (JoinedPhrase() => (Literal(),), 1),
 
-        Anagram() => (AnagramIndicator(), JoinedPhrase()),
-        Anagram() => (JoinedPhrase(), AnagramIndicator()),
+        (Anagram() => (AnagramIndicator(), JoinedPhrase()), 0.5),
+        (Anagram() => (JoinedPhrase(), AnagramIndicator()), 0.5),
 
-        Reversal() => (ReversalIndicator(), JoinedPhrase()),
-        Reversal() => (ReversalIndicator(), Synonym()),
-        Reversal() => (JoinedPhrase(), ReversalIndicator()),
-        Reversal() => (Synonym(), ReversalIndicator()),
+        (Reversal() => (ReversalIndicator(), JoinedPhrase()), 0.25),
+        (Reversal() => (ReversalIndicator(), Synonym()), 0.25),
+        (Reversal() => (JoinedPhrase(), ReversalIndicator()), 0.25),
+        (Reversal() => (Synonym(), ReversalIndicator()), 0.25),
 
         # InitialsIndicator() => (Phrase(),),
-        # Initials() => (Literal(),),
+        (Initials() => (Literal(),), 1),
         # Initials() => (Initials(), Literal()),
-        # Substring() => (InitialsIndicator(), Initials()),
-        # Substring() => (Initials(), InitialsIndicator()),
+        (Substring() => (InitialsIndicator(), Initials()), 0.5),
+        (Substring() => (Initials(), InitialsIndicator()), 0.5),
 
         # InsertABIndicator() => (Phrase(),),
         # InsertBAIndicator() => (Phrase(),),
@@ -156,14 +201,14 @@ function CrypticsGrammar()
         # Insertion() => (OuterInsertion(), InsertBAIndicator(), InnerInsertion()),
         # Insertion() => (OuterInsertion(), InnerInsertion(), InsertBAIndicator()),
 
-        # StraddleIndicator() => (Phrase(),),
-        # Straddle() => (StraddleIndicator(), Phrase()),
-        # Straddle() => (Phrase(), StraddleIndicator()),
+        (StraddleIndicator() => (Phrase(),), 1.0),
+        (Straddle() => (StraddleIndicator(), Literal()), 0.5),
+        (Straddle() => (Literal(), StraddleIndicator()), 0.5),
 
         # Literal() => (Token(),),
-        # Abbreviation() => (Phrase(),),
+        (Abbreviation() => (Phrase(),), 1.0),
         # Filler() => (Token(),),
-        # Synonym() => (Phrase(),),
+        (Synonym() => (Phrase(),), 1.0),
 
         # InitialSubstringIndicator() => (Phrase(),),
         # Substring() => (InitialSubstringIndicator(), Literal()),
@@ -177,23 +222,23 @@ function CrypticsGrammar()
         # Substring() => (FinalSubstringIndicator(), Synonym()),
         # Substring() => (Synonym(), FinalSubstringIndicator()),
 
-        Definition() => (Phrase(),),
+        (Definition() => (Phrase(),), 1),
 
-        # Wordplay() => (Literal(),),
-        Wordplay() => (Abbreviation(),),
-        Wordplay() => (Reversal(),),
-        Wordplay() => (Anagram(),),
-        # Wordplay() => (Substring(),),
+        (Wordplay() => (Literal(),), 1/12),
+        (Wordplay() => (Abbreviation(),), 1/12),
+        (Wordplay() => (Reversal(),), 1/12),
+        (Wordplay() => (Anagram(),), 1/12),
+        (Wordplay() => (Substring(),), 1/12),
         # Wordplay() => (Insertion(),),
         # Wordplay() => (Straddle(),),
-        Wordplay() => (Synonym(),),
-        # Wordplay() => (Wordplay(), Wordplay()),
+        (Wordplay() => (Synonym(),), 1/12),
+        (Wordplay() => (Wordplay(), Wordplay()), 1/2),
         # Wordplay() => (Wordplay(), Filler(), Wordplay()),
 
-        Clue() => (Wordplay(), Definition()),
-        Clue() => (Definition(), Wordplay()),
-        Clue() => (Wordplay(), Filler(), Definition()),
-        Clue() => (Definition(), Filler(), Wordplay()),
+        (Clue() => (Wordplay(), Definition()), 1/4),
+        (Clue() => (Definition(), Wordplay()), 1/4),
+        (Clue() => (Wordplay(), Filler(), Definition()), 1/4),
+        (Clue() => (Definition(), Filler(), Wordplay()), 1/4),
     ])
 end
 
@@ -223,28 +268,39 @@ function apply!(out, ::Anagram, ::Tuple{AnagramIndicator, JoinedPhrase}, (indica
 end
 @apply_by_reversing Anagram JoinedPhrase AnagramIndicator
 
-function apply(head::Wordplay, args::Tuple{Wordplay, Filler, Wordplay}, (w1, filler, w2))
-    apply(head, (Wordplay(), Wordplay()), (w1, w2))
-end
+# function apply(head::Wordplay, args::Tuple{Wordplay, Filler, Wordplay}, (w1, filler, w2))
+#     apply(head, (Wordplay(), Wordplay()), (w1, w2))
+# end
 
-function apply(head::Wordplay, args::Tuple{Wordplay, Wordplay}, (words1, words2))
-    outputs = Vector{String}()
-    for w1 in words1
-        h = PREFIXES[w1]
-        if h !== nothing
-            for w2 in words2
-                if has_concatenation(PREFIXES, h, w2)
-                    push!(outputs, string(w1, w2))
-                end
-            end
+function apply!(out, ::Wordplay, ::Tuple{Wordplay, Wordplay}, (w1, w2))
+    h = PREFIXES[w1]
+    if h !== nothing
+        if has_concatenation(PREFIXES, h, w2)
+            push!(out, string(w1, w2))
         end
     end
-    unique!(outputs)
-    outputs
 end
+# function apply(head::Wordplay, args::Tuple{Wordplay, Wordplay}, (words1, words2))
+#     outputs = Vector{String}()
+#     for w1 in words1
+#         h = PREFIXES[w1]
+#         if h !== nothing
+#             for w2 in words2
+#                 if has_concatenation(PREFIXES, h, w2)
+#                     push!(outputs, string(w1, w2))
+#                 end
+#             end
+#         end
+#     end
+#     unique!(outputs)
+#     outputs
+# end
 
-apply(head::Clue, args::Tuple{Wordplay, Definition}, (w, d)) = w
-apply(head::Clue, args::Tuple{Definition, Wordplay}, (d, w)) = w
+apply!(out, ::Clue, ::Tuple{Wordplay, Definition}, (w, d)) = push!(out, w)
+@apply_by_reversing Clue Definition Wordplay
+
+# apply(head::Clue, args::Tuple{Wordplay, Definition}, (w, d)) = w
+# apply(head::Clue, args::Tuple{Definition, Wordplay}, (d, w)) = w
 
 function apply!(out, ::Abbreviation, ::Tuple{Phrase}, (word,))
     if word in keys(ABBREVIATIONS)
@@ -262,13 +318,19 @@ apply!(out, ::Clue, ::Tuple{Definition, Filler, Wordplay}, (d, f, w)) = push!(ou
 apply!(out, ::Reversal, ::Tuple{ReversalIndicator, Any}, (indicator, word)) = push!(out, reverse(word))
 @apply_by_reversing Reversal Any ReversalIndicator
 
-apply!(out, ::Initials, ::Tuple{Token}, (word,)) = push!(out, string(first(word)))
-function apply!(out, ::Initials, ::Tuple{Initials, Token}, (initials, token))
-    next_letter = string(first(token))
-    if has_concatenation(SUBSTRINGS, initials, next_letter)
-        push!(out, string(initials, next_letter))
+function apply!(out, ::Initials, ::Tuple{Literal}, (phrase,))
+    result = join(first(s) for s in split(phrase))
+    if result in SUBSTRINGS
+        push!(out, result)
     end
 end
+# apply!(out, ::Initials, ::Tuple{Token}, (word,)) = push!(out, string(first(word)))
+# function apply!(out, ::Initials, ::Tuple{Initials, Token}, (initials, token))
+#     next_letter = string(first(token))
+#     if has_concatenation(SUBSTRINGS, initials, next_letter)
+#         push!(out, string(initials, next_letter))
+#     end
+# end
 
 apply!(out, ::Substring, ::Tuple{InitialsIndicator, Initials}, (indicator, initials)) = push!(out, initials)
 @apply_by_reversing Substring Initials InitialsIndicator
@@ -389,8 +451,8 @@ function straddling_words!(results, phrase, condition=is_word)
 end
 
 
-apply!(out, ::Straddle, ::Tuple{StraddleIndicator, Phrase}, (indicator, phrase)) = straddling_words!(out, phrase)
-@apply_by_reversing Straddle Phrase StraddleIndicator
+apply!(out, ::Straddle, ::Tuple{StraddleIndicator, Literal}, (indicator, phrase)) = straddling_words!(out, phrase)
+@apply_by_reversing Straddle Literal StraddleIndicator
 
 function apply!(out, ::Substring, ::Tuple{InitialSubstringIndicator, Union{Token, Synonym}}, (indicator, phrase))
     combined = replace(phrase, ' ' => "")

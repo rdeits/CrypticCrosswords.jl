@@ -71,13 +71,13 @@ function weight(candidate, known_parts_of_speech)
     if !isempty(known_parts_of_speech)
         if candidate in known_parts_of_speech
             return 100.0
-        elseif candidate == Literal() || candidate == Phrase()
+        elseif candidate ∈ (Literal(), Phrase(), Token())
             return 0.1
         else
             return 0.01
         end
     else
-        if candidate == Literal() || candidate == Phrase()
+        if candidate ∈ (Literal(), Phrase(), Token())
             return 0.1
         else
             return 0.01
@@ -99,7 +99,8 @@ function candidates(start, stop)
     end
     if stop == start
         append!(result, [
-            Filler()
+            Filler(),
+            Token(),
         ])
     end
     result
@@ -182,23 +183,20 @@ function CrypticsGrammar()
         (Reversal() => (Synonym(), ReversalIndicator()), 0.25),
 
         # InitialsIndicator() => (Phrase(),),
-        (Initials() => (Literal(),), 1),
         # Initials() => (Initials(), Literal()),
-        (Substring() => (InitialsIndicator(), Initials()), 0.5),
-        (Substring() => (Initials(), InitialsIndicator()), 0.5),
 
-        # InsertABIndicator() => (Phrase(),),
-        # InsertBAIndicator() => (Phrase(),),
-        # InnerInsertion() => (Synonym(),),
-        # InnerInsertion() => (JoinedPhrase(),),
-        # InnerInsertion() => (Substring(),),
-        # OuterInsertion() => (Synonym(),),
-        # OuterInsertion() => (JoinedPhrase(),),
+        (InsertABIndicator() => (Phrase(),), 1.0),
+        (InsertBAIndicator() => (Phrase(),), 1.0),
+        (InnerInsertion() => (Synonym(),), 1/3),
+        (InnerInsertion() => (JoinedPhrase(),), 1/3),
+        (InnerInsertion() => (Substring(),), 1/3),
+        (OuterInsertion() => (Synonym(),), 0.5),
+        (OuterInsertion() => (JoinedPhrase(),), 0.5),
         # Insertion() => (InsertABIndicator(), InnerInsertion(), OuterInsertion()),
-        # Insertion() => (InnerInsertion(), InsertABIndicator(), OuterInsertion()),
+        (Insertion() => (InnerInsertion(), InsertABIndicator(), OuterInsertion()), 0.5),
         # Insertion() => (InnerInsertion(), OuterInsertion(), InsertABIndicator()),
         # Insertion() => (InsertBAIndicator(), OuterInsertion(), InnerInsertion()),
-        # Insertion() => (OuterInsertion(), InsertBAIndicator(), InnerInsertion()),
+        (Insertion() => (OuterInsertion(), InsertBAIndicator(), InnerInsertion()), 0.5),
         # Insertion() => (OuterInsertion(), InnerInsertion(), InsertBAIndicator()),
 
         (StraddleIndicator() => (Phrase(),), 1.0),
@@ -210,11 +208,15 @@ function CrypticsGrammar()
         # Filler() => (Token(),),
         (Synonym() => (Phrase(),), 1.0),
 
-        # InitialSubstringIndicator() => (Phrase(),),
-        # Substring() => (InitialSubstringIndicator(), Literal()),
-        # Substring() => (Literal(), InitialSubstringIndicator()),
-        # Substring() => (InitialSubstringIndicator(), Synonym()),
-        # Substring() => (Synonym(), InitialSubstringIndicator()),
+        (Initials() => (Literal(),), 1),
+        (InitialSubstringIndicator() => (Phrase(),), 1.0),
+
+        (Substring() => (InitialsIndicator(), Initials()), 1/6),
+        (Substring() => (Initials(), InitialsIndicator()), 1/6),
+        (Substring() => (InitialSubstringIndicator(), Token()), 1/6),
+        (Substring() => (Token(), InitialSubstringIndicator()), 1/6),
+        (Substring() => (InitialSubstringIndicator(), Synonym()), 1/6),
+        (Substring() => (Synonym(), InitialSubstringIndicator()), 1/6),
 
         # FinalSubstringIndicator() => (Phrase(),),
         # Substring() => (FinalSubstringIndicator(), Literal()),
@@ -224,16 +226,16 @@ function CrypticsGrammar()
 
         (Definition() => (Phrase(),), 1),
 
-        (Wordplay() => (Literal(),), 1/12),
-        (Wordplay() => (Abbreviation(),), 1/12),
-        (Wordplay() => (Reversal(),), 1/12),
-        (Wordplay() => (Anagram(),), 1/12),
-        (Wordplay() => (Substring(),), 1/12),
-        # Wordplay() => (Insertion(),),
-        # Wordplay() => (Straddle(),),
-        (Wordplay() => (Synonym(),), 1/12),
+        (Wordplay() => (Literal(),), 1/18),
+        (Wordplay() => (Abbreviation(),), 1/18),
+        (Wordplay() => (Reversal(),), 1/18),
+        (Wordplay() => (Anagram(),), 1/18),
+        (Wordplay() => (Substring(),), 1/18),
+        (Wordplay() => (Insertion(),), 1/18),
+        (Wordplay() => (Straddle(),), 1/18),
+        (Wordplay() => (Synonym(),), 1/18),
+        (Wordplay() => (Wordplay(), Filler(), Wordplay()), 1/18),
         (Wordplay() => (Wordplay(), Wordplay()), 1/2),
-        # Wordplay() => (Wordplay(), Filler(), Wordplay()),
 
         (Clue() => (Wordplay(), Definition()), 1/4),
         (Clue() => (Definition(), Wordplay()), 1/4),
@@ -268,9 +270,9 @@ function apply!(out, ::Anagram, ::Tuple{AnagramIndicator, JoinedPhrase}, (indica
 end
 @apply_by_reversing Anagram JoinedPhrase AnagramIndicator
 
-# function apply(head::Wordplay, args::Tuple{Wordplay, Filler, Wordplay}, (w1, filler, w2))
-#     apply(head, (Wordplay(), Wordplay()), (w1, w2))
-# end
+function apply(head::Wordplay, args::Tuple{Wordplay, Filler, Wordplay}, (w1, filler, w2))
+    apply(head, (Wordplay(), Wordplay()), (w1, w2))
+end
 
 function apply!(out, ::Wordplay, ::Tuple{Wordplay, Wordplay}, (w1, w2))
     h = PREFIXES[w1]
@@ -406,14 +408,13 @@ function insertions!(results, buffer, a, b)
 end
 
 function insertions(inner, outer)
-    outputs = Vector{String}()
+    outputs = Set{String}()
     buffer = Vector{Char}()
     for w1 in inner
         for w2 in outer
             insertions!(outputs, buffer, w1, w2)
         end
     end
-    unique!(outputs)
     outputs
 end
 
@@ -454,6 +455,7 @@ end
 apply!(out, ::Straddle, ::Tuple{StraddleIndicator, Literal}, (indicator, phrase)) = straddling_words!(out, phrase)
 @apply_by_reversing Straddle Literal StraddleIndicator
 
+# TODO: inefficiently doing the replace() on already-joined phrases
 function apply!(out, ::Substring, ::Tuple{InitialSubstringIndicator, Union{Token, Synonym}}, (indicator, phrase))
     combined = replace(phrase, ' ' => "")
     len = length(combined)

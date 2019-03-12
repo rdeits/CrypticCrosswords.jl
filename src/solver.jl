@@ -1,5 +1,6 @@
 struct SolverState
-    arcs::Dict{Arc{Rule}, Dict{String, Vector{Vector{String}}}}
+    # arcs::Dict{Arc{Rule}, Dict{String, Vector{NTuple{N, String}}} where N}
+    arcs::Dict{Arc{Rule}, Set{String}}
 end
 
 SolverState() = SolverState(Dict())
@@ -11,13 +12,12 @@ function _apply(rule::Rule,
 end
 
 function _apply(head::GrammaticalSymbol, args::Tuple{Vararg{GrammaticalSymbol, N}}, inputs::AbstractVector) where {N}
-    apply(head, args, ntuple(i -> keys(inputs[i]), Val(N)))
+    apply(head, args, ntuple(i -> inputs[i], Val(N)))
 end
 
 function solve!(state::SolverState, arc::Arc{Rule})
     get!(state.arcs, arc) do
         inputs = [solve!(state, c) for c in constituents(arc)]
-        # inputs = solve!.(Ref(state), collect(constituents(arc)))
         _apply(rule(arc), inputs)
     end
 end
@@ -27,19 +27,23 @@ end
 end
 
 function apply(head::GrammaticalSymbol, args::Tuple{Vararg{GrammaticalSymbol, N}}, inputs) where {N}
-    result = Dict{String, Vector{Vector{String}}}()
-    buffer = Vector{String}()
+    # result = Dict{String, Vector{NTuple{N, String}}}()
+    # buffer = Vector{String}()
+    result = Set{String}()
     for input in _product(inputs, Val{N}())
-        empty!(buffer)
-        apply!(buffer, head, args, input)
-        for output in buffer
-            push!(get!(Vector{Vector{String}}, result, output), collect(input))
-        end
+        # empty!(buffer)
+        apply!(result, head, args, input)
+        # apply!(buffer, head, args, input)
+        # for output in buffer
+        #     push!(
+        #     push!(get!(Vector{NTuple{N, String}}, result, output), input)
+        # end
     end
     result
 end
 
-solve!(state::SolverState, s::AbstractString) = Dict{String, Vector{Vector{String}}}(s => [])
+# solve!(state::SolverState, s::AbstractString) = Dict{String, Vector{Vector{String}}}(s => [])
+solve!(state::SolverState, s::AbstractString) = Set([s])
 
 struct SolvedArc
     arc::Arc{Rule}
@@ -47,16 +51,26 @@ struct SolvedArc
     similarity::Float64
 end
 
+function output_checker(len::Union{Integer, Nothing}, pattern::Regex)
+    return word -> ((len === nothing || num_letters(word) == len) && is_word(word) && occursin(pattern, word))
+end
+
 function solve(clue;
-        pattern::Regex=r"",
-        strategy=BottomUp(),
-        min_grammar_score=1e-6)
+        length::Union{Integer, Nothing} = nothing,
+        pattern::Regex = r"",
+        strategy = BottomUp(),
+        min_grammar_score = 1e-5)
     state = SolverState()
     tokens = normalize.(split(clue))
     grammar = CrypticsGrammar()
+    check = output_checker(length, pattern)
 
     function is_solvable(arc)
+        if score(arc) < min_grammar_score
+            return 0
+        end
         outputs = solve!(state, arc)
+        isempty(outputs)
         if isempty(outputs)
             return 0
         else
@@ -71,16 +85,12 @@ function solve(clue;
         if score(arc) < min_grammar_score
             continue
         end
-        # @show arc
         # TODO: probably don't need to call solve!() here
         outputs = solve!(state, arc)
         @assert !isempty(outputs)
-        # if isempty(outputs)
-        #     println("dead arc:")
-        #     @show arc
-        # end
-        for (output, inputs) in outputs
-            if occursin(pattern, output)
+        # for (output, inputs) in outputs
+        for output in outputs
+            if check(output)
                 push!(solutions, SolvedArc(arc, output,
                                            solution_quality(arc, output)))
             end
@@ -215,6 +225,8 @@ function definition(arc::Arc)
     @assert lhs(inner(rule(arc))) === Clue()
     tokens(first(x for x in constituents(arc) if lhs(inner(rule(x))) == Definition()))
 end
+
+definition(arc::SolvedArc) = definition(arc.arc)
 
 num_letters(word::AbstractString) = count(!isequal(' '), word)
 

@@ -1,6 +1,6 @@
 using Test
 using CrypticCrosswords
-using CrypticCrosswords: definition, wordplay
+using CrypticCrosswords: definition
 
 @testset "Known clues" begin
     known_clues = [
@@ -36,7 +36,7 @@ using CrypticCrosswords: definition, wordplay
         ("Reap pleasure holding fruit", 5, "fruit", "apple"),
         ("Recover via fantastic miracle", 7, "recover", "reclaim"),
         ("returning regal drink", 5, "drink", "lager"),
-        ("she literally describes high society", 5, "society", "elite"), # should be "high society"
+        ("she literally describes high society", 5, "high society", "elite"),
         ("Significant ataxia overshadows choral piece", 7, "piece", "cantata"), # definition should actually be "choral piece"
         ("signore redefined districts", 7, "districts", "regions"),
         ("Sing gist of laudatory ode loudly", 5, "sing", "yodel"),
@@ -69,18 +69,17 @@ using CrypticCrosswords: definition, wordplay
 
     @time for (clue, length, expected_definition, expected_wordplay) in known_clues
         @show clue
-        solutions = @time solve(clue, length)
-        (arc, output, score) = first(solutions)
+        solutions, state = @time solve(clue, length=length)
+        arc = first(solutions)
         @test definition(arc) == expected_definition
-        @test output == expected_wordplay
+        @test arc.output == expected_wordplay
     end
 
     @time for (clue, length, expected_definition, expected_wordplay) in badly_ranked_clues
         @show clue
-        solutions = @time solve(clue, length)
-        @test any(solutions) do solution
-            (arc, output, score) = solution
-            definition(arc) == expected_definition && output == expected_wordplay
+        solutions, state = @time solve(clue, length=length)
+        @test any(solutions) do arc
+            definition(arc) == expected_definition && arc.output == expected_wordplay
         end
     end
 end

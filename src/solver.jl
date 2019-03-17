@@ -206,7 +206,7 @@ end
 # end
 
 function answer_similarity(word1::AbstractString, word2::AbstractString)
-    if word2 in keys(SYNONYMS[]) && word1 in SYNONYMS[][word2]
+    if word2 in keys(CACHE[].synonyms) && word1 in CACHE[].synonyms[word2]
         1.0
     else
         SemanticSimilarity.similarity(word1, word2)

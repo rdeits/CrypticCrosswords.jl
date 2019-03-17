@@ -111,7 +111,7 @@ function ChartParsers.terminal_productions(g::CrypticsGrammar, tokens)
     for start in 1:length(tokens)
         for stop in start:length(tokens)
             phrase = join(tokens[start:stop], ' ')
-            known_parts_of_speech = get(INDICATORS, phrase, Vector{GrammaticalSymbol}())
+            known_parts_of_speech = get(CACHE[].indicators, phrase, Vector{GrammaticalSymbol}())
             for candidate in candidates(start, stop)
                 w = weight(candidate, known_parts_of_speech)
                 push!(weights, (start:stop, w))
@@ -123,7 +123,7 @@ function ChartParsers.terminal_productions(g::CrypticsGrammar, tokens)
     for start in 1:length(tokens)
         for stop in start:length(tokens)
             phrase = join(tokens[start:stop], ' ')
-            known_parts_of_speech = get(INDICATORS, phrase, Vector{GrammaticalSymbol}())
+            known_parts_of_speech = get(CACHE[].indicators, phrase, Vector{GrammaticalSymbol}())
             for candidate in candidates(start, stop)
                 w = weight(candidate, known_parts_of_speech)
                 displacement = sum(weights) do (range, weight)
@@ -138,34 +138,6 @@ function ChartParsers.terminal_productions(g::CrypticsGrammar, tokens)
             end
         end
     end
-
-
-    #             # s = 1 / length(candidates)
-    #             push!(result, Arc{Rule}(start - 1, stop,
-    #                 Rule(candidate => (Token(),), s),
-    #                 [phrase], s))
-    #         end
-    #     end
-    # end
-            # # known_parts_of_speech = phrase == "initially" ? [InitialsIndicator()] : []
-            # n_known = length(known_parts_of_speech)
-            # n_unknown = length(parts_of_speech) - n_known
-            # if n_known > 0
-            #     p_known = 0.9
-            #     p_unknown = 1 - p_known
-            # else
-            #     p_unknown = 1.0
-            # end
-            # for part_of_speech in parts_of_speech
-            #     if part_of_speech in known_parts_of_speech
-            #         p = p_known / n_known
-            #     else
-            #         p = p_unknown / n_unknown
-            #     end
-            #     push!(result, Arc{Rule}(start - 1, stop, part_of_speech => (Token(),), [phrase], p))
-            # end
-    #     end
-    # end
     result
 end
 
@@ -250,18 +222,10 @@ apply!(out, ::GrammaticalSymbol, ::Tuple{GrammaticalSymbol}, (word,)) = push!(ou
 
 apply!(out, ::JoinedPhrase, ::Tuple{Literal}, (p,)) = push!(out, replace(p, ' ' => ""))
 
-# const MAX_PHRASE_LENGTH = 4
-
-# function apply!(out, ::Phrase, ::Tuple{Phrase, Token}, (phrase, token))
-#     if count(isequal(' '), phrase) < MAX_PHRASE_LENGTH - 1
-#         push!(out, string(phrase, " ", token))
-#     end
-# end
-
 function apply!(out, ::Anagram, ::Tuple{AnagramIndicator, JoinedPhrase}, (indicator, phrase))
     key = join(sort(collect(phrase)))
-    if key in keys(WORDS_BY_ANAGRAM)
-        for word in WORDS_BY_ANAGRAM[key]
+    if key in keys(CACHE[].words_by_anagram)
+        for word in CACHE[].words_by_anagram[key]
             if word != phrase
                 push!(out, word)
             end
@@ -275,9 +239,9 @@ function apply(head::Wordplay, args::Tuple{Wordplay, Filler, Wordplay}, (w1, fil
 end
 
 function apply!(out, ::Wordplay, ::Tuple{Wordplay, Wordplay}, (w1, w2))
-    h = PREFIXES[w1]
+    h = CACHE[].prefixes[w1]
     if h !== nothing
-        if has_concatenation(PREFIXES, h, w2)
+        if has_concatenation(CACHE[].prefixes, h, w2)
             push!(out, string(w1, w2))
         end
     end
@@ -285,10 +249,10 @@ end
 # function apply(head::Wordplay, args::Tuple{Wordplay, Wordplay}, (words1, words2))
 #     outputs = Vector{String}()
 #     for w1 in words1
-#         h = PREFIXES[w1]
+#         h = CACHE[].prefixes[w1]
 #         if h !== nothing
 #             for w2 in words2
-#                 if has_concatenation(PREFIXES, h, w2)
+#                 if has_concatenation(CACHE[].prefixes, h, w2)
 #                     push!(outputs, string(w1, w2))
 #                 end
 #             end
@@ -305,8 +269,8 @@ apply!(out, ::Clue, ::Tuple{Wordplay, Definition}, (w, d)) = push!(out, w)
 # apply(head::Clue, args::Tuple{Definition, Wordplay}, (d, w)) = w
 
 function apply!(out, ::Abbreviation, ::Tuple{Phrase}, (word,))
-    if word in keys(ABBREVIATIONS)
-        for abbrev in ABBREVIATIONS[word]
+    if word in keys(CACHE[].abbreviations)
+        for abbrev in CACHE[].abbreviations[word]
             push!(out, abbrev)
         end
     end
@@ -322,14 +286,14 @@ apply!(out, ::Reversal, ::Tuple{ReversalIndicator, Any}, (indicator, word)) = pu
 
 function apply!(out, ::Initials, ::Tuple{Literal}, (phrase,))
     result = join(first(s) for s in split(phrase))
-    if result in SUBSTRINGS
+    if result in CACHE[].substrings
         push!(out, result)
     end
 end
 # apply!(out, ::Initials, ::Tuple{Token}, (word,)) = push!(out, string(first(word)))
 # function apply!(out, ::Initials, ::Tuple{Initials, Token}, (initials, token))
 #     next_letter = string(first(token))
-#     if has_concatenation(SUBSTRINGS, initials, next_letter)
+#     if has_concatenation(CACHE[].substrings, initials, next_letter)
 #         push!(out, string(initials, next_letter))
 #     end
 # end
@@ -341,8 +305,8 @@ apply!(out, ::Substring, ::Tuple{TailIndicator, Phrase}, (indicator, phrase)) = 
 @apply_by_reversing Substring Phrase TailIndicator
 
 function apply!(out, ::Synonym, ::Tuple{Phrase}, (word,))
-    if word in keys(SYNONYMS[])
-        for syn in SYNONYMS[][word]
+    if word in keys(CACHE[].synonyms)
+        for syn in CACHE[].synonyms[word]
             push!(out, syn)
         end
     end
@@ -385,7 +349,7 @@ function insertions!(results, buffer, a, b)
         partial_hash = prefix_hash
         for j in (i + 1):(i + 1 + len_a)
             partial_hash = hash(buffer[j], partial_hash)
-            if (partial_hash & SUBSTRINGS.mask) ∉ SUBSTRINGS.slots
+            if (partial_hash & CACHE[].substrings.mask) ∉ CACHE[].substrings.slots
                 valid_substring = false
                 break
             end
@@ -395,7 +359,7 @@ function insertions!(results, buffer, a, b)
         end
         for j in (i + 1 + len_a + 1):(len_a + len_b)
             partial_hash = hash(buffer[j], partial_hash)
-            if (partial_hash & SUBSTRINGS.mask) ∉ SUBSTRINGS.slots
+            if (partial_hash & CACHE[].substrings.mask) ∉ CACHE[].substrings.slots
                 valid_substring = false
                 break
             end

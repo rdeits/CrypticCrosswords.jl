@@ -19,7 +19,6 @@ using CrypticCrosswords: definition
         ("Father returning ring with charm", 6, "charm", "appeal"),
         ("form of licit sea salt", 8, "salt", "silicate"),
         ("improve meal or I eat nuts", 10, "improve", "ameliorate"),
-        ("in glee over unusual color", 10, "color", "olive green"),
         ("initial meetings disappoint rosemary internally", 6, "initial meetings", "intros"),
         ("Initially congoers like us eschew solving hints", 5, "hints", "clues"),
         ("initially babies are naked", 4, "naked", "bare"),
@@ -51,6 +50,7 @@ using CrypticCrosswords: definition
     ]
 
     badly_ranked_clues = [
+        ("in glee over unusual color", 10, "color", "olive green"), # TODO: this is solvable, but we get "green olive" equally highly ranked
         ("anagram marvellously conceals structure of language", 7, "language", "grammar"),
         ("clean oneself, but in reverse", 3, "clean oneself", "tub"),
         ("Damaged credential tied together", 10, "tied together", "interlaced"),

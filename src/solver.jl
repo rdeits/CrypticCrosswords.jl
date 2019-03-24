@@ -1,9 +1,25 @@
 struct SolverState
-    # arcs::Dict{Arc{Rule}, Dict{String, Vector{NTuple{N, String}}} where N}
-    arcs::Dict{Arc{Rule}, Set{String}}
+    outputs::Dict{Arc{Rule}, Set{String}}
+    derivations::Dict{Arc{Rule}, Dict{String, Vector{Vector{String}}}}
 end
 
-SolverState() = SolverState(Dict())
+SolverState() = SolverState(Dict(), Dict())
+
+@generated function _product(inputs, ::Val{N}) where {N}
+    Expr(:call, :product, [:(inputs[$i]) for i in 1:N]...)
+end
+
+function apply(head::GrammaticalSymbol, args::Tuple{Vararg{GrammaticalSymbol, N}}, inputs) where {N}
+    result = Set{String}()
+    for input in _product(inputs, Val{N}())
+        apply!(result, head, args, input)
+    end
+    result
+end
+
+function _apply(head::GrammaticalSymbol, args::Tuple{Vararg{GrammaticalSymbol, N}}, inputs::AbstractVector) where {N}
+    apply(head, args, ntuple(i -> inputs[i], Val(N)))
+end
 
 function _apply(rule::Rule,
                 constituents::AbstractVector)
@@ -11,39 +27,15 @@ function _apply(rule::Rule,
     _apply(lhs(r), rhs(r), constituents)
 end
 
-function _apply(head::GrammaticalSymbol, args::Tuple{Vararg{GrammaticalSymbol, N}}, inputs::AbstractVector) where {N}
-    apply(head, args, ntuple(i -> inputs[i], Val(N)))
-end
+solve!(state::SolverState, s::AbstractString) = Set([s])
 
 function solve!(state::SolverState, arc::Arc{Rule})
-    get!(state.arcs, arc) do
+    get!(state.outputs, arc) do
         inputs = [solve!(state, c) for c in constituents(arc)]
         _apply(rule(arc), inputs)
     end
 end
 
-@generated function _product(inputs, ::Val{N}) where {N}
-    Expr(:call, :product, [:(inputs[$i]) for i in 1:N]...)
-end
-
-function apply(head::GrammaticalSymbol, args::Tuple{Vararg{GrammaticalSymbol, N}}, inputs) where {N}
-    # result = Dict{String, Vector{NTuple{N, String}}}()
-    # buffer = Vector{String}()
-    result = Set{String}()
-    for input in _product(inputs, Val{N}())
-        # empty!(buffer)
-        apply!(result, head, args, input)
-        # apply!(buffer, head, args, input)
-        # for output in buffer
-        #     push!(
-        #     push!(get!(Vector{NTuple{N, String}}, result, output), input)
-        # end
-    end
-    result
-end
-
-# solve!(state::SolverState, s::AbstractString) = Dict{String, Vector{Vector{String}}}(s => [])
-solve!(state::SolverState, s::AbstractString) = Set([s])
 
 struct SolvedArc
     arc::Arc{Rule}
@@ -106,19 +98,65 @@ struct DerivedArc
     constituents::Vector{Union{DerivedArc, String}}
 end
 
-function derive(arc::Arc{Rule}, target::AbstractString, state::SolverState)
+function derive(head::GrammaticalSymbol, args::Tuple{Vararg{GrammaticalSymbol, N}}, inputs, target) where {N}
+    result = Vector{Vector{String}}()
+    buffer = Vector{String}()
+    for input in _product(inputs, Val{N}())
+        empty!(buffer)
+        apply!(buffer, head, args, input)
+        input_vec = collect(input)
+        for output in buffer
+            if output == target
+                push!(result, input_vec)
+            end
+        end
+    end
+    result
+end
+
+function _derive(head::GrammaticalSymbol, args::Tuple{Vararg{GrammaticalSymbol, N}}, inputs::AbstractVector, target::AbstractString) where {N}
+    derive(head, args, ntuple(i -> inputs[i], Val(N)), target)
+end
+
+function _derive(rule::Rule,
+                constituents::AbstractVector,
+                target::AbstractString)
+    r = inner(rule)
+    _derive(lhs(r), rhs(r), constituents, target)
+end
+
+
+# function derive!(state::SolverState, arc::Arc{Rule})
+#     get!(state.derivations, arc) do
+#         inputs = [solve!(state, c) for c in constituents(arc)]
+#         _derive(rule(arc), inputs)
+#     end
+# end
+
+function find_derivations!(state::SolverState, arc::Arc{Rule}, target::AbstractString)
+    arc_derivations = get!(state.derivations, arc) do
+        Dict()
+    end
+    get!(arc_derivations, target) do
+        inputs = [solve!(state, c) for c in constituents(arc)]
+        _derive(rule(arc), inputs, target)
+    end
+end
+
+derive!(state::SolverState, s::AbstractString, t::AbstractString) = [t]
+
+function derive!(state::SolverState, arc::Arc{Rule}, target::AbstractString)
     result = DerivedArc[]
-    for inputs in solve!(state, arc)[target]
-        for children in product(derive.(constituents(arc), inputs, Ref(state))...)
+    input_lists = find_derivations!(state, arc, target)
+    for inputs in input_lists
+        for children in product(derive!.(Ref(state), constituents(arc), inputs)...)
             push!(result, DerivedArc(arc, target, collect(children)))
         end
     end
     result
 end
 
-derive(s::AbstractString, t::AbstractString, state::SolverState) = [t]
-
-derive(solved::SolvedArc, state::SolverState) = derive(solved.arc, solved.output, state)
+derive!(state::SolverState, solved::SolvedArc) = derive!(state, solved.arc, solved.output)
 
 _show(io::IO, arc::DerivedArc) = print(io, arc)
 _show(io::IO, s::AbstractString) = print(io, '"', s, '"')

@@ -2,7 +2,7 @@ struct Cache
     words::Set{String}
     synonyms::Dict{String, Set{String}}
     words_by_anagram::Dict{String, Vector{String}}
-    abbreviations::Dict{String, Vector{String}}
+    abbreviations::Dict{String, Set{String}}
     substrings::PTrie{32}
     prefixes::PTrie{32}
     indicators::Dict{String, Vector{GrammaticalSymbol}}
@@ -98,7 +98,7 @@ function Cache()
     synonyms = load_synonyms()
     words = Set{String}()
     words_by_anagram = Dict{String, Vector{String}}()
-    abbreviations = Dict{String, Vector{String}}()
+    abbreviations = Dict{String, Set{String}}()
     substrings = PTrie{32}()
     prefixes = PTrie{32}()
     indicators = Dict{String, Vector{GrammaticalSymbol}}()
@@ -116,12 +116,15 @@ function Cache()
     end
     open(joinpath(@__DIR__, "..", "corpora", "mhl-abbreviations", "abbreviations.json")) do file
         for (word, abbrevs) in JSON.parse(file)
-            abbreviations[normalize(word)] = normalize.(abbrevs)
+            abbreviations[normalize(word)] = Set(normalize.(abbrevs))
         end
     end
     open(joinpath(@__DIR__, "..", "corpora", "abbreviations.json")) do file
         for (word, abbrevs) in JSON.parse(file)
-            append!(get!(Vector{String}, abbreviations, normalize(word)), normalize.(abbrevs))
+            s = get!(Set{String}, abbreviations, normalize(word))
+            for a in abbrevs
+                push!(s, a)
+            end
         end
     end
 

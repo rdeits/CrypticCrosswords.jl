@@ -51,7 +51,7 @@ function solve(clue;
         length::Union{Integer, Nothing} = nothing,
         pattern::Regex = r"",
         strategy = BottomUp(),
-        min_grammar_score = 1e-5)
+        min_grammar_score = 1e-6)
     state = SolverState()
     tokens = normalize.(split(clue))
     grammar = CrypticsGrammar()
@@ -72,10 +72,12 @@ function solve(clue;
     parser = ChartParser(tokens, grammar, BottomUp(),
                          is_solvable)
     solutions = SolvedArc[]
+    lowest_score_seen = Inf
     for arc in Iterators.filter(is_complete(parser), parser)
-    # for arc in parser
+        @assert score(arc) <= lowest_score_seen
+        lowest_score_seen = score(arc)
         if score(arc) < min_grammar_score
-            continue
+            break
         end
         # TODO: probably don't need to call solve!() here
         outputs = solve!(state, arc)

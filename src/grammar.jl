@@ -94,7 +94,9 @@ function candidates(start, stop)
             Phrase(),
             AnagramIndicator(),
             InitialsIndicator(),
-            ReversalIndicator()
+            ReversalIndicator(),
+            InsertABIndicator(),
+            InsertBAIndicator(),
         ])
     end
     if stop == start
@@ -105,6 +107,9 @@ function candidates(start, stop)
     end
     result
 end
+
+# TODO: mark a phrase as belonging to a known part of speech if it contains
+# a word that matches that part of speech too
 
 function ChartParsers.terminal_productions(g::CrypticsGrammar, tokens)
     weights = Vector{Tuple{UnitRange{Int}, Float64}}()
@@ -157,13 +162,15 @@ function CrypticsGrammar()
         # InitialsIndicator() => (Phrase(),),
         # Initials() => (Initials(), Literal()),
 
-        (InsertABIndicator() => (Phrase(),), 1.0),
-        (InsertBAIndicator() => (Phrase(),), 1.0),
-        (InnerInsertion() => (Synonym(),), 1/3),
-        (InnerInsertion() => (JoinedPhrase(),), 1/3),
-        (InnerInsertion() => (Substring(),), 1/3),
-        (OuterInsertion() => (Synonym(),), 0.5),
-        (OuterInsertion() => (JoinedPhrase(),), 0.5),
+        # (InsertABIndicator() => (Phrase(),), 1.0),
+        # (InsertBAIndicator() => (Phrase(),), 1.0),
+        (InnerInsertion() => (Synonym(),), 1/4),
+        (InnerInsertion() => (JoinedPhrase(),), 1/4),
+        (InnerInsertion() => (Substring(),), 1/4),
+        (InnerInsertion() => (Reversal(),), 1/4),
+        (OuterInsertion() => (Synonym(),), 1/3),
+        (OuterInsertion() => (Abbreviation(),), 1/3),
+        (OuterInsertion() => (JoinedPhrase(),), 1/3),
         # Insertion() => (InsertABIndicator(), InnerInsertion(), OuterInsertion()),
         (Insertion() => (InnerInsertion(), InsertABIndicator(), OuterInsertion()), 0.5),
         # Insertion() => (InnerInsertion(), OuterInsertion(), InsertABIndicator()),

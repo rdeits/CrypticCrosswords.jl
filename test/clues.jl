@@ -4,11 +4,11 @@ using CrypticCrosswords: definition
 
 @testset "Known clues" begin
     known_clues = [
-        ("Ach, Cole wrecked something in the ear", 7, "ear", "cochlea"), # should be "something in the ear"
+        ("Ach, Cole wrecked something in the ear", 7, "in the ear", "cochlea"), # should be "something in the ear"
         ("aerial worker anne on the way up", 7, "aerial", "antenna"),
         ("at first congoers like us eschew solving hints", 5, "hints", "clues"),
         ("attractive female engraving", 8, "attractive", "fetching"),
-        ("canoe wrecked in large sea", 5, "sea", "ocean"), # should be "large sea"
+        ("canoe wrecked in large sea", 5, "large sea", "ocean"),
         ("Carryall's gotta be upset", 7, "carryalls", "tote bag"),
         ("couch is unfinished until now", 4, "couch", "sofa"),
         ("cuts up curtains differently for those who use needles", 14, "those who use needles", "acupuncturists"),

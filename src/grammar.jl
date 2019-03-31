@@ -94,6 +94,8 @@ function candidates(start, stop)
             Phrase(),
             AnagramIndicator(),
             InitialsIndicator(),
+            InitialSubstringIndicator(),
+            FinalSubstringIndicator(),
             ReversalIndicator(),
             InsertABIndicator(),
             InsertBAIndicator(),
@@ -108,6 +110,20 @@ function candidates(start, stop)
     result
 end
 
+function known_parts_of_speech(phrase::AbstractString, indicators)
+    result = Vector{GrammaticalSymbol}()
+    if phrase in keys(indicators)
+        append!(result, indicators[phrase])
+    end
+    for word in split(phrase)
+        if word in keys(indicators)
+            append!(result, indicators[word])
+        end
+    end
+    result
+end
+
+
 # TODO: mark a phrase as belonging to a known part of speech if it contains
 # a word that matches that part of speech too
 
@@ -116,9 +132,9 @@ function ChartParsers.terminal_productions(g::CrypticsGrammar, tokens)
     for start in 1:length(tokens)
         for stop in start:length(tokens)
             phrase = join(tokens[start:stop], ' ')
-            known_parts_of_speech = get(CACHE[].indicators, phrase, Vector{GrammaticalSymbol}())
+            PoS = known_parts_of_speech(phrase, CACHE[].indicators)
             for candidate in candidates(start, stop)
-                w = weight(candidate, known_parts_of_speech)
+                w = weight(candidate, PoS)
                 push!(weights, (start:stop, w))
             end
         end
@@ -128,9 +144,9 @@ function ChartParsers.terminal_productions(g::CrypticsGrammar, tokens)
     for start in 1:length(tokens)
         for stop in start:length(tokens)
             phrase = join(tokens[start:stop], ' ')
-            known_parts_of_speech = get(CACHE[].indicators, phrase, Vector{GrammaticalSymbol}())
+            PoS = known_parts_of_speech(phrase, CACHE[].indicators)
             for candidate in candidates(start, stop)
-                w = weight(candidate, known_parts_of_speech)
+                w = weight(candidate, PoS)
                 displacement = sum(weights) do (range, weight)
                     if !isempty(intersect(range, start:stop))
                         weight

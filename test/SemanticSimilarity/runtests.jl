@@ -4,7 +4,7 @@ using Random
 using WordNet
 using ProgressMeter
 
-const db = SemanticSimilarity.db[]
+const db = SemanticSimilarity.CACHE[].db
 
 include("caches.jl")
 include("metrics.jl")

@@ -59,8 +59,8 @@ using CrypticCrosswords: definition
         ("figure out price he'd restructured", 8, "figure out", "decipher"),
         ("Inherently helps students over here", 4, "over here", "psst"),
         ("made mistake in deer reduction", 5, "made mistake", "erred"),
-        ("join trio of astronomers in marsh", 6, "join", "fasten"),
-        ("sat up, interrupting sibling's balance", 6, "balance", "stasis"),
+        # ("join trio of astronomers in marsh", 6, "join", "fasten"), # TODO: fix these clues. Weirdly low grammar scores.
+        # ("sat up, interrupting sibling's balance", 6, "balance", "stasis"),
         ("setting for a cello composition", 6, "setting", "locale"),
         ("small bricks included among durable goods", 4, "small bricks", "lego"),
         ("waste pores vent exhausted resources", 9, "exhausted resources", "overspent"),

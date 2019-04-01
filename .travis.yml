@@ -2,18 +2,21 @@
 language: julia
 os:
   - linux
-  - osx
 julia:
   - 1.0
+  - 1.1
   - nightly
 env:
   - DATADEPS_ALWAYS_ACCEPT=true
-notifications:
-  email: false
-
 matrix:
  allow_failures:
  - julia: nightly
+notifications:
+  email:
+    - recipients:
+      - robin.deits@gmail.com
+    - on_success: never
+    - on_failure: change
 branches:
   only:
     - master

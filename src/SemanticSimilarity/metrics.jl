@@ -18,12 +18,12 @@ function similarity(::WuPalmer, w1::AbstractString, w2::AbstractString)
     if w1 == w2
         return 1.0
     end
-    if !(w1 in keys(PATHS)) || !(w2 in keys(PATHS))
+    if !(w1 in keys(CACHE[].paths)) || !(w2 in keys(CACHE[].paths))
         return 0.0
     end
     s = 0.0
-    for p1 in PATHS[w1]
-        for p2 in PATHS[w2]
+    for p1 in CACHE[].paths[w1]
+        for p2 in CACHE[].paths[w2]
             s = max(s, similarity(WuPalmer(), p1, p2))
         end
     end
@@ -50,11 +50,11 @@ function similarity(::SimilarityDepth, w1::AbstractString, w2::AbstractString)
         return 1.0
     end
     s = 0.0
-    if !(w1 in keys(SIMILARITY_GROUPS)) || !(w2 in keys(SYNSETS))
+    if !(w1 in keys(CACHE[].similarity_groups)) || !(w2 in keys(CACHE[].synsets))
         return s
     end
-    for groups in SIMILARITY_GROUPS[w1]
-        for synset in SYNSETS[w2]
+    for groups in CACHE[].similarity_groups[w1]
+        for synset in CACHE[].synsets[w2]
             s = max(s, similarity(SimilarityDepth(), groups, synset))
         end
     end

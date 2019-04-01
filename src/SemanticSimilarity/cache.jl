@@ -1,10 +1,14 @@
 const Path = Vector{Synset}
 const SimilarityGroups = Vector{Set{Synset}}
-const db = Ref{WordNet.DB}()
-const SYNSETS = Dict{String, Vector{Synset}}()
-const PATHS = Dict{String, Vector{Path}}()
-const SIMILARITY_GROUPS = Dict{String, Vector{SimilarityGroups}}()
-# const STEMMER = Ref{Stemmer}()
+
+struct Cache
+    db::WordNet.DB
+    synsets::Dict{String, Vector{Synset}}
+    paths::Dict{String, Vector{Path}}
+    similarity_groups::Dict{String, Vector{SimilarityGroups}}
+end
+
+const CACHE = Ref{Cache}()
 
 function push(v::AbstractVector, x)
     result = copy(v)
@@ -72,37 +76,41 @@ function basic_stem(word)
     end
 end
 
-function update_caches!()
-    db[] = DB()
-    empty!(PATHS)
-    empty!(SIMILARITY_GROUPS)
-    empty!(SYNSETS)
-    # STEMMER[] = Stemmer("english")
-    @showprogress "Caching similarities" for (pos, part_of_speech_synsets) in db[].synsets
+function Cache()
+    db = DB()
+    synsets = Dict{String, Vector{Synset}}()
+    paths = Dict{String, Vector{Path}}()
+    groups = Dict{String, Vector{SimilarityGroups}}()
+    @showprogress "Caching similarities" for (pos, part_of_speech_synsets) in db.synsets
         for synset in values(part_of_speech_synsets)
             for word in words(synset)
-                push!(get!(Vector{Synset}, SYNSETS, basic_stem(normalize(word))), synset)
+                push!(get!(Vector{Synset}, synsets, basic_stem(normalize(word))), synset)
             end
             if synset.pos ∈ ('a', 's')
-                groups = similarity_groups(db[], synset)
+                g = similarity_groups(db, synset)
                 for word in words(synset)
-                    push!(get!(Vector{SimilarityGroups}, SIMILARITY_GROUPS, basic_stem(normalize(word))), groups)
+                    push!(get!(Vector{SimilarityGroups}, groups, basic_stem(normalize(word))), g)
                 end
             else
-                paths = paths_to_synset(db[], synset)
+                p = paths_to_synset(db, synset)
                 for word in words(synset)
-                    append!(get!(Vector{Path}, PATHS, basic_stem(normalize(word))), paths)
+                    append!(get!(Vector{Path}, paths, basic_stem(normalize(word))), p)
                 end
             end
         end
     end
+    Cache(db, synsets, paths, groups)
+end
+
+function update_cache!()
+    CACHE[] = Cache()
 end
 
 function synsets(word)
-    get(SYNSETS, basic_stem(word), Synset[])
+    get(CACHE[].synsets, basic_stem(word), Synset[])
 end
 
 function __init__()
-    update_caches!()
+    update_cache!()
 end
 

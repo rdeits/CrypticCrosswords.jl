@@ -315,7 +315,7 @@ register(DataDep("SCOWL-wordlist-en_US-large",
     Build Date: Mon Apr 16 22:14:07 EDT 2018
     Wordlist Command: mk-list -v1 --accents=both en_US 70
     """,
-    "https://sourceforge.net/projects/wordlist/files/speller/2018.04.16/wordlist-en_US-large-2018.04.16.zip",
+    "https://github.com/rdeits/speller-wordlist-en-US-large-mirror/raw/8d85394ac1b38383c6fc352d5cd5f4994ed068ca/wordlist-en_US-large-2018.04.16.zip",
     "136da8bf589f26a04c45c36ef204b983c4941ad74a44006de74dd235ca3a311b",
     post_fetch_method = unpack
 ))

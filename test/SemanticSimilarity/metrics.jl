@@ -1,5 +1,5 @@
 @testset "Symmetry" begin
-    words = collect(keys(SemanticSimilarity.SYNSETS))
+    words = collect(keys(SemanticSimilarity.CACHE[].synsets))
 
     Random.seed!(42)
     for i in 1:1000
@@ -31,7 +31,7 @@ end
 @testset "Synonyms" begin
     # Members of the same synset should always have similarity == 1
     Random.seed!(1)
-    synsets = collect(values(SemanticSimilarity.SYNSETS))
+    synsets = collect(values(SemanticSimilarity.CACHE[].synsets))
     for i in 1:100
         synset = rand(rand(synsets))
         for word1 in WordNet.words(synset)

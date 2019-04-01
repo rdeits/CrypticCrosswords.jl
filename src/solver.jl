@@ -51,7 +51,7 @@ function solve(clue;
         length::Union{Integer, Nothing} = nothing,
         pattern::Regex = r"",
         strategy = BottomUp(),
-        min_grammar_score = 1e-7)
+        min_grammar_score = 1e-6)
     state = SolverState()
     tokens = normalize.(split(clue))
     grammar = CrypticsGrammar()

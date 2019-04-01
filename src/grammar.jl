@@ -67,21 +67,16 @@ end
 ChartParsers.productions(g::CrypticsGrammar) = g.productions
 ChartParsers.start_symbol(g::CrypticsGrammar) = _name(Clue())
 
-function weight(candidate, known_parts_of_speech)
-    if !isempty(known_parts_of_speech)
-        if candidate in known_parts_of_speech
-            return 100.0
-        elseif candidate ∈ (Literal(), Phrase(), Token())
-            return 0.1
-        else
-            return 0.01
-        end
+function weight(phrase::AbstractString, candidate::GrammaticalSymbol, indicators)
+    known_phrases = get(indicators, candidate, Set{String}())
+    if phrase in known_phrases
+        100
+    elseif any(w -> w in known_phrases, split(phrase))
+        1
+    elseif candidate ∈ (Literal(), Phrase(), Token())
+        0.1
     else
-        if candidate ∈ (Literal(), Phrase(), Token())
-            return 0.1
-        else
-            return 0.01
-        end
+        0.01
     end
 end
 
@@ -110,31 +105,13 @@ function candidates(start, stop)
     result
 end
 
-function known_parts_of_speech(phrase::AbstractString, indicators)
-    result = Vector{GrammaticalSymbol}()
-    if phrase in keys(indicators)
-        append!(result, indicators[phrase])
-    end
-    for word in split(phrase)
-        if word in keys(indicators)
-            append!(result, indicators[word])
-        end
-    end
-    result
-end
-
-
-# TODO: mark a phrase as belonging to a known part of speech if it contains
-# a word that matches that part of speech too
-
 function ChartParsers.terminal_productions(g::CrypticsGrammar, tokens)
     weights = Vector{Tuple{UnitRange{Int}, Float64}}()
     for start in 1:length(tokens)
         for stop in start:length(tokens)
             phrase = join(tokens[start:stop], ' ')
-            PoS = known_parts_of_speech(phrase, CACHE[].indicators)
             for candidate in candidates(start, stop)
-                w = weight(candidate, PoS)
+                w = weight(phrase, candidate, CACHE[].indicators)
                 push!(weights, (start:stop, w))
             end
         end
@@ -144,9 +121,8 @@ function ChartParsers.terminal_productions(g::CrypticsGrammar, tokens)
     for start in 1:length(tokens)
         for stop in start:length(tokens)
             phrase = join(tokens[start:stop], ' ')
-            PoS = known_parts_of_speech(phrase, CACHE[].indicators)
             for candidate in candidates(start, stop)
-                w = weight(candidate, PoS)
+                w = weight(phrase, candidate, CACHE[].indicators)
                 displacement = sum(weights) do (range, weight)
                     if !isempty(intersect(range, start:stop))
                         weight

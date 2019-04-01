@@ -5,7 +5,7 @@ struct Cache
     abbreviations::Dict{String, Set{String}}
     substrings::PTrie{32}
     prefixes::PTrie{32}
-    indicators::Dict{String, Vector{GrammaticalSymbol}}
+    indicators::Dict{GrammaticalSymbol, Set{String}}
 end
 
 const CACHE = Ref{Cache}()
@@ -101,7 +101,7 @@ function Cache()
     abbreviations = Dict{String, Set{String}}()
     substrings = PTrie{32}()
     prefixes = PTrie{32}()
-    indicators = Dict{String, Vector{GrammaticalSymbol}}()
+    indicators = Dict{GrammaticalSymbol, Set{String}}()
 
     for word in keys(synonyms)
         push!(words, word)
@@ -147,7 +147,7 @@ function Cache()
         ("Reversal", ReversalIndicator())]
         for line in eachline(joinpath(@__DIR__, "..", "corpora", "indicators", filename))
             phrase = normalize(strip(line))
-            push!(get!(Vector{GrammaticalSymbol}, indicators, phrase), part_of_speech)
+            push!(get!(Set{String}, indicators, part_of_speech), phrase)
         end
     end
     Cache(words, synonyms, words_by_anagram, abbreviations, substrings, prefixes, indicators)

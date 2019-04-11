@@ -7,7 +7,7 @@ using DataDeps: @datadep_str
 using ProgressMeter: @showprogress
 import JSON
 
-export solve, Context, IsWord, IsPrefix, IsSuffix, derive!
+export solve, Context, IsWord, IsPrefix, IsSuffix, derive!, explain
 
 function normalize(word)
     word |> lowercase |> strip |> (w -> replace(w, '_' => ' ')) |> (w -> replace(w, r"[^a-z0-9 ]" => ""))

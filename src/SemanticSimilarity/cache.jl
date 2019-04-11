@@ -111,6 +111,8 @@ function synsets(word)
 end
 
 function __init__()
-    update_cache!()
+    if !isassigned(CACHE)
+        update_cache!()
+    end
 end
 

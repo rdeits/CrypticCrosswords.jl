@@ -18,6 +18,7 @@ using .SemanticSimilarity
 
 include("grammar.jl")
 include("solver.jl")
+include("explanations.jl")
 include("ptrie.jl")
 include("cache.jl")
 
@@ -25,7 +26,9 @@ is_word(x::AbstractString) = x in CACHE[].words
 
 function __init__()
     include(joinpath(@__DIR__, "..", "deps", "data_registration.jl"))
-    update_cache!()
+    if !isassigned(CACHE)
+        update_cache!()
+    end
 end
 
 end # module

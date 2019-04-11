@@ -100,6 +100,12 @@ struct DerivedArc
     constituents::Vector{Union{DerivedArc, String}}
 end
 
+struct DerivedSolution
+    derivation::DerivedArc
+    output::String
+    similarity::Float64
+end
+
 function derive(head::GrammaticalSymbol, args::Tuple{Vararg{GrammaticalSymbol, N}}, inputs, target) where {N}
     result = Vector{Vector{String}}()
     buffer = Vector{String}()
@@ -150,7 +156,10 @@ function derive!(state::SolverState, arc::Arc{Rule}, target::AbstractString)
     result
 end
 
-derive!(state::SolverState, solved::SolvedArc) = derive!(state, solved.arc, solved.output)
+function derive!(state::SolverState, solved::SolvedArc)
+    derivations = derive!(state, solved.arc, solved.output)
+    DerivedSolution.(derivations, Ref(solved.output), Ref(solved.similarity))
+end
 
 _show(io::IO, arc::DerivedArc) = print(io, arc)
 _show(io::IO, s::AbstractString) = print(io, '"', s, '"')

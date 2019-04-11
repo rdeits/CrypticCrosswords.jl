@@ -1,25 +1,24 @@
 using Test
 using CrypticCrosswords
 
-@testset "Explanations" begin
-    clue = "spin broken shingle"
-    solutions, state = solve(clue, length=7)
+function solve_and_explain(clue, length)
+    solutions, state = solve(clue, length=length)
     derivations = derive!(state, solutions[1])
     io = IOBuffer()
     explain(io, first(derivations))
-    @test String(take!(io)) == """
+    String(take!(io))
+end
+
+@testset "Explanations" begin
+
+    @test solve_and_explain("spin broken shingle", 7) == """
 The answer is "english"
 "spin" is the definition.
 "broken" means to anagram "shingle" to get "english"
 "english" matches "spin" with confidence 1.0
 """
 
-    clue = "initially babies are naked"
-    solutions, state = solve(clue, length=4)
-    derivations = derive!(state, solutions[1])
-    io = IOBuffer()
-    explain(io, first(derivations))
-    @test String(take!(io)) == """
+    @test solve_and_explain("initially babies are naked", 4) == """
 The answer is "bare"
 "initially" means to take the first letter of "babies" to get "b"
 Combine "b" and "are" to get "bare"
@@ -27,18 +26,21 @@ Combine "b" and "are" to get "bare"
 "bare" matches "naked" with confidence 1.0
 """
 
-    clue = "hungary's leader, stuffy and bald"
-    solutions, state = solve(clue, length=8)
-    derivations = derive!(state, solutions[1])
-    io = IOBuffer()
-    explain(io, first(derivations))
-    @test String(take!(io)) == """
+    @test solve_and_explain("hungary's leader, stuffy and bald", 8) == """
 The answer is "hairless"
 "leader" means to take the first letter of "hungarys" to get "h"
 Take a synonym of "stuffy" to get "airless"
 Combine "h" and "airless" to get "hairless"
 "bald" is the definition.
 "hairless" matches "bald" with confidence 1.0
+"""
+
+    @test solve_and_explain("aerial worker anne on the way up", 7) == """
+The answer is "antenna"
+"aerial" is the definition.
+"on the way up" means to reverse "anne" to get "enna"
+Combine "ant" and "enna" to get "antenna"
+"antenna" matches "aerial" with confidence 1.0
 """
 
 end

@@ -30,6 +30,13 @@ function explain(io::IO, output, ::Synonym, ::Any, (word,))
     println(io, "Take a synonym of \"$(word.output)\" to get \"$(output)\"")
 end
 
+function explain(io::IO, output, ::Reversal, ::Tuple{ReversalIndicator, Any}, (indicator, argument))
+    println(io, "\"$(indicator.output)\" means to reverse \"$(argument.output)\" to get \"$(output)\"")
+end
+
+explain(io::IO, output, lhs::Reversal, rhs::Tuple{Any, ReversalIndicator}, constituents) = explain(io, output, lhs, reverse(rhs), reverse(constituents))
+
+
 function explain(io::IO, arc::DerivedArc)
     for c in arc.constituents
         explain(io, c)

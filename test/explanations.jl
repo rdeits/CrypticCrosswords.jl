@@ -5,7 +5,9 @@ using CrypticCrosswords
     clue = "spin broken shingle"
     solutions, state = solve(clue, length=7)
     derivations = derive!(state, solutions[1])
-    @test explain(first(derivations)) == """
+    io = IOBuffer()
+    explain(io, first(derivations))
+    @test String(take!(io)) == """
 The answer is "english"
 "spin" is the definition.
 "broken" means to anagram "shingle" to get "english"
@@ -15,7 +17,9 @@ The answer is "english"
     clue = "initially babies are naked"
     solutions, state = solve(clue, length=4)
     derivations = derive!(state, solutions[1])
-    @test explain(first(derivations)) == """
+    io = IOBuffer()
+    explain(io, first(derivations))
+    @test String(take!(io)) == """
 The answer is "bare"
 "initially" means to take the first letter of "babies" to get "b"
 Combine "b" and "are" to get "bare"
@@ -26,7 +30,9 @@ Combine "b" and "are" to get "bare"
     clue = "hungary's leader, stuffy and bald"
     solutions, state = solve(clue, length=8)
     derivations = derive!(state, solutions[1])
-    @test explain(first(derivations)) == """
+    io = IOBuffer()
+    explain(io, first(derivations))
+    @test String(take!(io)) == """
 The answer is "hairless"
 "leader" means to take the first letter of "hungarys" to get "h"
 Take a synonym of "stuffy" to get "airless"

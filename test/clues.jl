@@ -73,6 +73,7 @@ using CrypticCrosswords: definition
         arc = first(solutions)
         @test definition(arc) == expected_definition || endswith(expected_definition, definition(arc))
         @test arc.output == expected_wordplay
+        derivations = Iterators.flatten([derive!(state, s) for s in Iterators.take(solutions, 10)])
     end
 
     @time for (clue, length, expected_definition, expected_wordplay) in badly_ranked_clues
@@ -81,5 +82,6 @@ using CrypticCrosswords: definition
         @test any(solutions) do arc
             definition(arc) == expected_definition && arc.output == expected_wordplay
         end
+        derivations = Iterators.flatten([derive!(state, s) for s in Iterators.take(solutions, 10)])
     end
 end

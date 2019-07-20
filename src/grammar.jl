@@ -245,6 +245,10 @@ function apply!(out, ::Wordplay, ::Tuple{Wordplay, Wordplay}, (w1, w2))
         end
     end
 end
+
+apply!(out, ::Wordplay, ::Tuple{Wordplay, Filler, Wordplay}, (w1, _, w2)) =
+    apply!(out, Wordplay(), (Wordplay(), Wordplay()), (w1, w2))
+
 # function apply(head::Wordplay, args::Tuple{Wordplay, Wordplay}, (words1, words2))
 #     outputs = Vector{String}()
 #     for w1 in words1

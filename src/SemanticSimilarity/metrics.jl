@@ -18,23 +18,23 @@ function similarity(::WuPalmer, w1::AbstractString, w2::AbstractString)
     if w1 == w2
         return 1.0
     end
-    if !(w1 in keys(CACHE[].paths)) || !(w2 in keys(CACHE[].paths))
+    if !(w1 in keys(CACHE.paths)) || !(w2 in keys(CACHE.paths))
         return 0.0
     end
     s = 0.0
-    for p1 in CACHE[].paths[w1]
-        for p2 in CACHE[].paths[w2]
+    for p1 in CACHE.paths[w1]
+        for p2 in CACHE.paths[w2]
             s = max(s, similarity(WuPalmer(), p1, p2))
         end
     end
     return s
 end
 
-function similarity(::WuPalmer, p1::Path, p2::Path)
+function similarity(::WuPalmer, p1::BasicPath, p2::BasicPath)
     2 * common_ancestor_depth(p1, p2) / (length(p1) + length(p2))
 end
 
-function common_ancestor_depth(p1::Path, p2::Path)
+function common_ancestor_depth(p1::BasicPath, p2::BasicPath)
     max_depth = min(length(p1), length(p2))
     for i in 1:max_depth
         if p1[i] != p2[i]
@@ -50,11 +50,11 @@ function similarity(::SimilarityDepth, w1::AbstractString, w2::AbstractString)
         return 1.0
     end
     s = 0.0
-    if !(w1 in keys(CACHE[].similarity_groups)) || !(w2 in keys(CACHE[].synsets))
+    if !(w1 in keys(CACHE.similarity_groups)) || !(w2 in keys(CACHE.synsets))
         return s
     end
-    for groups in CACHE[].similarity_groups[w1]
-        for synset in CACHE[].synsets[w2]
+    for groups in CACHE.similarity_groups[w1]
+        for synset in CACHE.synsets[w2]
             s = max(s, similarity(SimilarityDepth(), groups, synset))
         end
     end
@@ -63,7 +63,7 @@ end
 
 const ADJECTIVE_EQUIVALENT_DEPTH = 10
 
-function similarity(::SimilarityDepth, groups::SimilarityGroups, synset::Synset)
+function similarity(::SimilarityDepth, groups::BasicSimilarityGroups, synset::BasicSynset)
     d = similarity_distance(groups, synset)
     if d === nothing
         return 0.0
@@ -71,7 +71,7 @@ function similarity(::SimilarityDepth, groups::SimilarityGroups, synset::Synset)
     2 * (ADJECTIVE_EQUIVALENT_DEPTH - d) / (2 * ADJECTIVE_EQUIVALENT_DEPTH)
 end
 
-function similarity_distance(groups::SimilarityGroups, synset::Synset)
+function similarity_distance(groups::BasicSimilarityGroups, synset::BasicSynset)
     for i in 1:length(groups)
         if synset in groups[i]
             return i - 1

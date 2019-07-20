@@ -1,14 +1,23 @@
 const Path = Vector{Synset}
 const SimilarityGroups = Vector{Set{Synset}}
 
-struct Cache
-    db::WordNet.DB
-    synsets::Dict{String, Vector{Synset}}
-    paths::Dict{String, Vector{Path}}
-    similarity_groups::Dict{String, Vector{SimilarityGroups}}
+struct BasicSynset
+    words::Vector{String}
 end
+Base.hash(s::BasicSynset, h::UInt) = hash(s.words, h)
+Base.isequal(s1::BasicSynset, s2::BasicSynset) = s1.words === s2.words
 
-const CACHE = Ref{Cache}()
+WordNet.words(b::BasicSynset) = b.words
+
+const BasicPath = Vector{BasicSynset}
+const BasicSimilarityGroups = Vector{Set{BasicSynset}}
+
+struct Cache
+    # db::WordNet.DB
+    synsets::Dict{String, Vector{BasicSynset}}
+    paths::Dict{String, Vector{BasicPath}}
+    similarity_groups::Dict{String, Vector{BasicSimilarityGroups}}
+end
 
 function push(v::AbstractVector, x)
     result = copy(v)
@@ -76,43 +85,46 @@ function basic_stem(word)
     end
 end
 
+strip_wordnet_pointers(s::Synset, c::AbstractDict{Synset, BasicSynset}) =
+    get!(() -> BasicSynset(collect(words(s))), c, s)
+strip_wordnet_pointers(v::Set{Synset}, c::AbstractDict{Synset, BasicSynset}) =
+    Set([strip_wordnet_pointers(x, c) for x in v])
+function strip_wordnet_pointers(v::Union{
+            Vector{Synset},
+            Vector{Set{Synset}},
+            Vector{Vector{Synset}},
+            Vector{Vector{Set{Synset}}}},
+        c::AbstractDict{Synset, BasicSynset})
+    [strip_wordnet_pointers(x, c) for x in v]
+end
+
 function Cache()
     db = DB()
-    synsets = Dict{String, Vector{Synset}}()
-    paths = Dict{String, Vector{Path}}()
-    groups = Dict{String, Vector{SimilarityGroups}}()
+    synsets = Dict{String, Vector{BasicSynset}}()
+    paths = Dict{String, Vector{BasicPath}}()
+    groups = Dict{String, Vector{BasicSimilarityGroups}}()
+    synset_cache = Dict{Synset, BasicSynset}()
     @showprogress "Caching similarities" for (pos, part_of_speech_synsets) in db.synsets
         for synset in values(part_of_speech_synsets)
             for word in words(synset)
-                push!(get!(Vector{Synset}, synsets, basic_stem(normalize(word))), synset)
+                push!(get!(Vector{BasicSynset},
+                           synsets,
+                           basic_stem(normalize(word))),
+                      strip_wordnet_pointers(synset, synset_cache))
             end
             if synset.pos ∈ ('a', 's')
-                g = similarity_groups(db, synset)
+                g = strip_wordnet_pointers(similarity_groups(db, synset), synset_cache)
                 for word in words(synset)
-                    push!(get!(Vector{SimilarityGroups}, groups, basic_stem(normalize(word))), g)
+                    push!(get!(Vector{BasicSimilarityGroups}, groups, basic_stem(normalize(word))),
+                          g)
                 end
             else
-                p = paths_to_synset(db, synset)
+                p = strip_wordnet_pointers(paths_to_synset(db, synset), synset_cache)
                 for word in words(synset)
-                    append!(get!(Vector{Path}, paths, basic_stem(normalize(word))), p)
+                    append!(get!(Vector{BasicPath}, paths, basic_stem(normalize(word))), p)
                 end
             end
         end
     end
-    Cache(db, synsets, paths, groups)
+    Cache(synsets, paths, groups)
 end
-
-function update_cache!()
-    CACHE[] = Cache()
-end
-
-function synsets(word)
-    get(CACHE[].synsets, basic_stem(word), Synset[])
-end
-
-function __init__()
-    if !isassigned(CACHE)
-        update_cache!()
-    end
-end
-

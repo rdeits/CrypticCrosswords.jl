@@ -25,9 +25,12 @@ include("cache.jl")
 is_word(x::AbstractString) = x in CACHE[].words
 
 function __init__()
-    include(joinpath(@__DIR__, "..", "deps", "data_registration.jl"))
-    if !isassigned(CACHE)
-        update_cache!()
+    # Don't run __init__ while precompiling
+    if ccall(:jl_generating_output, Cint, ()) == 0
+        include(joinpath(@__DIR__, "..", "deps", "data_registration.jl"))
+        if !isassigned(CACHE)
+            update_cache!()
+        end
     end
 end
 

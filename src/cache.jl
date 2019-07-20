@@ -3,8 +3,8 @@ struct Cache
     synonyms::Dict{String, Set{String}}
     words_by_anagram::Dict{String, Vector{String}}
     abbreviations::Dict{String, Set{String}}
-    substrings::PTrie{32}
-    prefixes::PTrie{32}
+    substrings::PTrie{30}
+    prefixes::PTrie{30}
     indicators::Dict{GrammaticalSymbol, Set{String}}
 end
 
@@ -99,8 +99,8 @@ function Cache()
     words = Set{String}()
     words_by_anagram = Dict{String, Vector{String}}()
     abbreviations = Dict{String, Set{String}}()
-    substrings = PTrie{32}()
-    prefixes = PTrie{32}()
+    substrings = PTrie{30}()
+    prefixes = PTrie{30}()
     indicators = Dict{GrammaticalSymbol, Set{String}}()
 
     for word in keys(synonyms)
@@ -155,6 +155,5 @@ end
 
 function update_cache!()
     CACHE[] = Cache()
-    SemanticSimilarity.update_cache!()
 end
 

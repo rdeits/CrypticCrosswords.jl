@@ -53,7 +53,7 @@ function explain(io::IO, output, ::Synonym, ::Tuple{Phrase}, (phrase,))
 end
 
 function explain(io::IO, output, ::Abbreviation, ::Tuple{Phrase}, (phrase,))
-    println(io, "A common replacement for \"$(phrase.output)\"  is \"$(output)\".")
+    println(io, "A common replacement for \"$(phrase.output)\" is \"$(output)\".")
 end
 
 function explain(io::IO, arc::DerivedArc)
@@ -67,7 +67,7 @@ end
 function explain(io::IO, solution::DerivedSolution)
     println(io, "The answer is \"$(solution.output)\".")
     explain(io, solution.derivation)
-    println(io, "\"$(solution.output)\" matches \"$(definition(solution.derivation.arc))\" with confidence $(round(100 * solution.similarity))%.")
+    println(io, "\"$(solution.output)\" matches \"$(definition(solution.derivation.arc))\" with confidence $(round(Int, 100 * solution.similarity))%.")
 end
 
 explain(x) = explain(stdout, x)

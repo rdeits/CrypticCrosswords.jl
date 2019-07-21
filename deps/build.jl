@@ -1,4 +1,5 @@
 using DataDeps
+using WordNet
 
 # The license issues are covered in the Readme
 prev = get(ENV, "DATADEPS_ALWAYS_ACCEPT", nothing)

@@ -30,7 +30,7 @@
 #         return nothing
 #     end
 
-#     @showprogress "Similarity depths" for groups_for_word in values(SemanticSimilarity.CACHE[].similarity_groups)
+#     @showprogress "Similarity depths" for groups_for_word in values(SemanticSimilarity.CACHE.similarity_groups)
 #         for groups in groups_for_word
 #             synset = first(first(groups))
 #             for i in 1:length(groups)

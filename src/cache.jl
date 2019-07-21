@@ -8,8 +8,6 @@ struct Cache
     indicators::Dict{GrammaticalSymbol, Set{String}}
 end
 
-const CACHE = Ref{Cache}()
-
 function parse_heading(line)
     parts = split(line, '|')
     length(parts) == 2 || @show line parts
@@ -152,8 +150,3 @@ function Cache()
     end
     Cache(words, synonyms, words_by_anagram, abbreviations, substrings, prefixes, indicators)
 end
-
-function update_cache!()
-    CACHE[] = Cache()
-end
-

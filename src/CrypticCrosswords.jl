@@ -22,13 +22,9 @@ include("explanations.jl")
 include("ptrie.jl")
 include("cache.jl")
 
-is_word(x::AbstractString) = x in CACHE[].words
+include(joinpath(@__DIR__, "..", "deps", "data_registration.jl"))
+const CACHE = Cache()
 
-function __init__()
-    include(joinpath(@__DIR__, "..", "deps", "data_registration.jl"))
-    if !isassigned(CACHE)
-        update_cache!()
-    end
-end
+is_word(x::AbstractString) = x in CACHE.words
 
 end # module

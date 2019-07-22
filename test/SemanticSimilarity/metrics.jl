@@ -1,5 +1,5 @@
 @testset "Symmetry" begin
-    words = collect(keys(SemanticSimilarity.CACHE[].synsets))
+    words = collect(keys(SemanticSimilarity.CACHE.synsets))
 
     Random.seed!(42)
     for i in 1:1000
@@ -31,10 +31,10 @@ end
 @testset "Synonyms" begin
     # Members of the same synset should always have similarity == 1
     Random.seed!(1)
-    synsets = collect(values(SemanticSimilarity.CACHE[].synsets))
+    synsets = collect(values(SemanticSimilarity.CACHE.synsets))
     for i in 1:100
         synset = rand(rand(synsets))
-        for word1 in WordNet.words(synset)
+        for word1 in words(synset)
             for word2 in words(synset)
                 @test similarity(CrypticCrosswords.normalize(word1),
                                  CrypticCrosswords.normalize(word2)) == 1.0

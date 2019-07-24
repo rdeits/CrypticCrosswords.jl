@@ -14,6 +14,10 @@ Statistics = "10745b16-79ce-11e8-11f9-7d13ad32a3b2"
 WordNet = "a945a9ba-879e-550e-aa45-2a4d52798e91"
 
 [compat]
+ChartParsers = "0.0.1"
+Combinatorics = "0.7"
+DataDeps = "0.6"
+ProgressMeter = "0.9, 1"
 WordNet = "0.2.1"
 julia = "1.0"
 

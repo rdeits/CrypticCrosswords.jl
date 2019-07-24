@@ -4,14 +4,14 @@
 uuid = "2a0f44e3-6c83-55bd-87e4-b1978d98bd5f"
 
 [[BinaryProvider]]
-deps = ["Libdl", "Pkg", "SHA", "Test"]
-git-tree-sha1 = "055eb2690182ebc31087859c3dd8598371d3ef9e"
+deps = ["Libdl", "Logging", "SHA"]
+git-tree-sha1 = "c7361ce8a2129f20b0e05a89f7070820cfed6648"
 uuid = "b99e7846-7c00-51b0-8f62-c81ae34c0232"
-version = "0.5.3"
+version = "0.5.6"
 
 [[ChartParsers]]
 deps = ["DataStructures"]
-path = "ChartParsers.jl"
+git-tree-sha1 = "4ebd4cdf92714324a6667abbf7b961ca844bc3f9"
 uuid = "de988000-0167-11e9-3115-2b7bbce15f76"
 version = "0.0.1"
 
@@ -22,34 +22,30 @@ uuid = "861a8166-3701-5b0c-9a16-15d98fcdc6aa"
 version = "0.7.0"
 
 [[DataDeps]]
-deps = ["DelimitedFiles", "HTTP", "Reexport", "SHA", "Test"]
-git-tree-sha1 = "446eb89694d774bc55adcfec0ed0f85efda8857f"
+deps = ["HTTP", "Reexport", "SHA"]
+git-tree-sha1 = "3fecf920ad9702f015a5ab198b233b4c1c50992a"
 uuid = "124859b0-ceae-595e-8997-d05f6a7a8dfe"
-version = "0.6.2"
+version = "0.6.4"
 
 [[DataStructures]]
-deps = ["InteractiveUtils", "OrderedCollections", "Random", "Serialization", "Test"]
-git-tree-sha1 = "ca971f03e146cf144a9e2f2ce59674f5bf0e8038"
+deps = ["InteractiveUtils", "OrderedCollections"]
+git-tree-sha1 = "0809951a1774dc724da22d26e4289bbaab77809a"
 uuid = "864edb3b-99cc-5e75-8d2d-829cb0a9cfe8"
-version = "0.15.0"
+version = "0.17.0"
 
 [[Dates]]
 deps = ["Printf"]
 uuid = "ade2ca70-3891-5945-98fb-dc099432e06a"
-
-[[DelimitedFiles]]
-deps = ["Mmap"]
-uuid = "8bb1440f-4735-579b-a4ab-409b98df4dab"
 
 [[Distributed]]
 deps = ["Random", "Serialization", "Sockets"]
 uuid = "8ba89e20-285c-5b6f-9357-94700520ee1b"
 
 [[HTTP]]
-deps = ["Base64", "Dates", "Distributed", "IniFile", "MbedTLS", "Random", "Sockets", "Test"]
-git-tree-sha1 = "25db0e3f27bd5715814ca7e4ad22025fdcf5cc6e"
+deps = ["Base64", "Dates", "IniFile", "MbedTLS", "Sockets"]
+git-tree-sha1 = "03ddc88af7f2d963fac5aa9f3ac8e11914d68a78"
 uuid = "cd3eb016-35fb-5094-929b-558a96fad6f3"
-version = "0.8.0"
+version = "0.8.4"
 
 [[IniFile]]
 deps = ["Test"]
@@ -62,10 +58,10 @@ deps = ["Markdown"]
 uuid = "b77e0a4c-d291-57a0-90e8-8db25a27a240"
 
 [[JSON]]
-deps = ["Dates", "Distributed", "Mmap", "Sockets", "Test", "Unicode"]
-git-tree-sha1 = "1f7a25b53ec67f5e9422f1f551ee216503f4a0fa"
+deps = ["Dates", "Mmap", "Parsers", "Unicode"]
+git-tree-sha1 = "b34d7cef7b337321e97d22242c3c2b91f476748e"
 uuid = "682c06a0-de6a-54ab-a142-c8b1cf79cde6"
-version = "0.20.0"
+version = "0.21.0"
 
 [[LibGit2]]
 uuid = "76f85450-5226-5b5a-8eaa-529ad045b433"
@@ -85,19 +81,25 @@ deps = ["Base64"]
 uuid = "d6f4376e-aef5-505a-96c1-9c027394607a"
 
 [[MbedTLS]]
-deps = ["BinaryProvider", "Dates", "Libdl", "Random", "Sockets", "Test"]
-git-tree-sha1 = "40b4a9149f0967714991328b8155c9ff5f91e755"
+deps = ["BinaryProvider", "Dates", "Distributed", "Libdl", "Random", "Sockets", "Test"]
+git-tree-sha1 = "2d94286a9c2f52c63a16146bb86fd6cdfbf677c6"
 uuid = "739be429-bea8-5141-9913-cc70e7f3736d"
-version = "0.6.7"
+version = "0.6.8"
 
 [[Mmap]]
 uuid = "a63ad114-7e13-5084-954f-fe012c677804"
 
 [[OrderedCollections]]
 deps = ["Random", "Serialization", "Test"]
-git-tree-sha1 = "85619a3f3e17bb4761fe1b1fd47f0e979f964d5b"
+git-tree-sha1 = "c4c13474d23c60d20a67b217f1d7f22a40edf8f1"
 uuid = "bac558e1-5e72-5ebc-8fee-abe8a469f55d"
-version = "1.0.2"
+version = "1.1.0"
+
+[[Parsers]]
+deps = ["Dates", "Test"]
+git-tree-sha1 = "db2b35dedab3c0e46dc15996d170af07a5ab91c9"
+uuid = "69de0a69-1ddd-5017-9359-2bf0b02dc9f0"
+version = "0.3.6"
 
 [[Pkg]]
 deps = ["Dates", "LibGit2", "Markdown", "Printf", "REPL", "Random", "SHA", "UUIDs"]
@@ -114,10 +116,10 @@ deps = ["Unicode"]
 uuid = "de0858da-6303-5e67-8744-51eddeeeb8d7"
 
 [[ProgressMeter]]
-deps = ["Distributed", "Printf", "Random", "Test"]
-git-tree-sha1 = "48058bc11607676e5bbc0b974af79106c6200787"
+deps = ["Distributed", "Printf"]
+git-tree-sha1 = "0f08e0e74e5b160ca20d3962a2620038b75881c7"
 uuid = "92933f4c-e287-5a05-a399-4b506db050ca"
-version = "0.9.0"
+version = "1.0.0"
 
 [[REPL]]
 deps = ["InteractiveUtils", "Markdown", "Sockets"]
@@ -163,6 +165,6 @@ uuid = "4ec0a83e-493e-50e2-b9ac-8f72acf5a8f5"
 
 [[WordNet]]
 deps = ["DataDeps", "Test"]
-git-tree-sha1 = "45a60de1f2a0c4e1814b54657a9d1674ee021418"
+git-tree-sha1 = "a7a63f03bb14928edb05042ea555704890f8465e"
 uuid = "a945a9ba-879e-550e-aa45-2a4d52798e91"
-version = "0.2.1"
+version = "0.2.2"

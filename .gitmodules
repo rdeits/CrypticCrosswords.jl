@@ -1,3 +1,0 @@
-[submodule "ChartParsers.jl"]
-	path = ChartParsers.jl
-	url = https://github.com/rdeits/ChartParsers.jl

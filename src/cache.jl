@@ -84,7 +84,7 @@ function remove_self_mentions!(synonyms)
 end
 
 function load_synonyms()
-    path = datadep"OpenOffice-MyThes-1.0/MyThes-1.0/th_en_US_new.dat"
+    path = datadep"OpenOffice-MyThes-1.0/openoffice-mythes-mirror-1.0/th_en_US_new.dat"
     synonyms = parse_synonyms(path)
     make_symmetric!(synonyms)
     remove_loops!(synonyms)

@@ -44,8 +44,8 @@ register(DataDep("OpenOffice-MyThes-1.0",
      *
      */
     """,
-    "https://www.openoffice.org/lingucomponent/MyThes-1.zip",
-    "06594d9caf7a093baaac92bd1be41145084e58f4db7ca31f5783aa5023079279",
+    "https://github.com/rdeits/openoffice-mythes-mirror/archive/v1.0.zip",
+    "5dddb4ee551bb9f850932650da039189501e70a20dfa1663519e46bda78706ab",
     post_fetch_method = unpack
 ))
 

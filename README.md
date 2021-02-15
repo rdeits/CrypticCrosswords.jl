@@ -1,6 +1,8 @@
 # CrypticCrosswords
 
-[![Build Status](https://github.com/rdeits/CrypticCrosswords.jl/workflows/CI/badge.svg)](https://github.com/rdeits/CrypticCrosswords.jl/actions?query=workflow%3ACI) [![codecov.io](http://codecov.io/github/rdeits/CrypticCrosswords.jl/coverage.svg?branch=master)](http://codecov.io/github/rdeits/CrypticCrosswords.jl?branch=master)
+[![Build Status](https://github.com/rdeits/CrypticCrosswords.jl/workflows/CI/badge.svg)](https://github.com/rdeits/CrypticCrosswords.jl/actions?query=workflow%3ACI) [![codecov.io](http://codecov.io/github/rdeits/CrypticCrosswords.jl/coverage.svg?branch=master)](http://codecov.io/github/rdeits/CrypticCrosswords.jl?branch=master) [![DOI](https://zenodo.org/badge/165487213.svg)](https://zenodo.org/badge/latestdoi/165487213)
+
+
 
 This package implements a fully automated solver for cryptic crossword clues in the Julia programming language. It works by building up a formal context-free grammar describing the way cryptic clues tend to be structured, then parsing the given clue using that grammar. Each valid parse is solved and checked to see if it produces a coherent wordplay and definition.
 

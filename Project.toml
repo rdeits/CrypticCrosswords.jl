@@ -1,7 +1,7 @@
 name = "CrypticCrosswords"
 uuid = "5f016b6a-1706-11e9-24c5-5177419d09cb"
 authors = ["Robin Deits <robin.deits@gmail.com>"]
-version = "0.1.0"
+version = "0.1.1"
 
 [deps]
 ChartParsers = "de988000-0167-11e9-3115-2b7bbce15f76"
@@ -16,7 +16,7 @@ WordNet = "a945a9ba-879e-550e-aa45-2a4d52798e91"
 [compat]
 ChartParsers = "0.0.1"
 Combinatorics = "0.7"
-DataDeps = "0.6"
+DataDeps = "0.7"
 DataStructures = "0.16, 0.17"
 JSON = "0.18, 0.19, 0.20, 0.21"
 ProgressMeter = "0.9, 1"

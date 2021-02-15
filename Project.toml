@@ -1,7 +1,7 @@
 name = "CrypticCrosswords"
 uuid = "5f016b6a-1706-11e9-24c5-5177419d09cb"
 authors = ["Robin Deits <robin.deits@gmail.com>"]
-version = "0.1.0"
+version = "0.1.1"
 
 [deps]
 ChartParsers = "de988000-0167-11e9-3115-2b7bbce15f76"

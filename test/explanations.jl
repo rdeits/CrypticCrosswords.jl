@@ -44,4 +44,13 @@ Combine "ant" and "enna" to get "antenna".
 "antenna" matches "aerial" with confidence 100%.
 """
 
+# Simplified version of "Join trio of astronomers in marsh"
+    @test solve_and_explain("Join ast in marsh", 6) == """
+The answer is "fasten".
+"join" is the definition.
+Take a synonym of "marsh" to get "fen".
+"in" means to insert "ast" in "fen" to get "fasten".
+"fasten" matches "join" with confidence 75%.
+"""
+
 end

@@ -268,9 +268,6 @@ apply!(out, ::Wordplay, ::Tuple{Wordplay, Filler, Wordplay}, (w1, _, w2)) =
 apply!(out, ::Clue, ::Tuple{Wordplay, Definition}, (w, d)) = push!(out, w)
 @apply_by_reversing Clue Definition Wordplay
 
-# apply(head::Clue, args::Tuple{Wordplay, Definition}, (w, d)) = w
-# apply(head::Clue, args::Tuple{Definition, Wordplay}, (d, w)) = w
-
 function apply!(out, ::Abbreviation, ::Tuple{Phrase}, (word,))
     if word in keys(CACHE.abbreviations)
         for abbrev in CACHE.abbreviations[word]
@@ -374,7 +371,7 @@ function insertions!(results, buffer, a, b)
     end
 end
 
-function insertions(inner, outer)
+function product_insertions(inner, outer)
     outputs = Set{String}()
     buffer = Vector{Char}()
     for w1 in inner
@@ -386,17 +383,27 @@ function insertions(inner, outer)
 end
 
 
-apply(::Insertion, ::Tuple{InsertABIndicator, GrammaticalSymbol, GrammaticalSymbol}, (indicator, a, b)) = insertions(a, b)
+# Insertions use an extra `Char[]` buffer to speed up computing the insertions
+# across the product of their input arguments, which is why we overload the
+# higher-level `apply()` function and do our own product over arguments inside
+# `product_insertions()` above. However, our derivation extraction needs to actually
+# call `apply!`, so we implement that too.
+#
+# We also iterate over the three possible positions in which the indicator word
+# can be found:
+for position in 1:3
+    for (indicator, args) in [(InsertABIndicator, [:a, :b]), (InsertBAIndicator, [:b, :a])]
+        arg_types = [GrammaticalSymbol, GrammaticalSymbol]
+        insert!(arg_types, position, indicator)
+        insert!(args, position, :indicator)
 
-apply(::Insertion, ::Tuple{GrammaticalSymbol, InsertABIndicator, GrammaticalSymbol}, (a, indicator, b)) = insertions(a, b)
+        @eval apply(::Insertion, ::Tuple{$arg_types...}, $(Expr(:tuple, args...))) =
+            product_insertions(a, b)
 
-apply(::Insertion, ::Tuple{GrammaticalSymbol, GrammaticalSymbol, InsertABIndicator}, (a, b, indicator)) = insertions(a, b)
-
-apply(::Insertion, ::Tuple{InsertBAIndicator, GrammaticalSymbol, GrammaticalSymbol}, (indicator, b, a)) = insertions(a, b)
-
-apply(::Insertion, ::Tuple{GrammaticalSymbol, InsertBAIndicator, GrammaticalSymbol}, (b, indicator, a)) = insertions(a, b)
-
-apply(::Insertion, ::Tuple{GrammaticalSymbol, GrammaticalSymbol, InsertBAIndicator}, (b, a, indicator)) = insertions(a, b)
+        @eval apply!(out, ::Insertion, ::Tuple{$arg_types...}, $(Expr(:tuple, args...))) =
+            insertions!(out, Char[], a, b)
+    end
+end
 
 function straddling_words!(results, phrase, condition=is_word)
     combined = replace(phrase, ' ' => "")

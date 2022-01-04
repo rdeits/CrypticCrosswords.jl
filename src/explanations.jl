@@ -56,6 +56,30 @@ function explain(io::IO, output, ::Abbreviation, ::Tuple{Phrase}, (phrase,))
     println(io, "A common replacement for \"$(phrase.output)\" is \"$(output)\".")
 end
 
+# Explain how to insert A in B for all three positions of the indicator word
+for position in 1:3
+    arg_types = [GrammaticalSymbol, GrammaticalSymbol]
+    insert!(arg_types, position, InsertABIndicator)
+    args = [:a, :b]
+    insert!(args, position, :indicator)
+
+    @eval function explain(io::IO, output, ::Insertion, ::Tuple{$arg_types...}, $(Expr(:tuple, args...,)))
+        println(io, "\"$(indicator.output)\" means to insert \"$(a.output)\" in \"$(b.output)\" to get \"$(output)\".")
+    end
+end
+
+# Explain how to insert B in A for all three positions of the indicator word
+for position in 1:3
+    arg_types = [GrammaticalSymbol, GrammaticalSymbol]
+    insert!(arg_types, position, InsertBAIndicator)
+    args = [:b, :a]
+    insert!(args, position, :indicator)
+
+    @eval function explain(io::IO, output, ::Insertion, ::Tuple{$arg_types...}, $(Expr(:tuple, args...,)))
+        println(io, "\"$(indicator.output)\" means to insert \"$(a.output)\" in \"$(b.output)\" to get \"$(output)\".")
+    end
+end
+
 function explain(io::IO, arc::DerivedArc)
     for c in arc.constituents
         explain(io, c)
